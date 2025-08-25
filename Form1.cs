@@ -19,114 +19,114 @@ namespace ADlook
 {
     public partial class Form1 : Form
     {
-        // Сервис для работы с Active Directory
+        // РЎРµСЂРІРёСЃ РґР»СЏ СЂР°Р±РѕС‚С‹ СЃ Active Directory
         private readonly AdService _adService = new AdService();
 
-        // Словарь для хранения предопределенных запросов
+        // РЎР»РѕРІР°СЂСЊ РґР»СЏ С…СЂР°РЅРµРЅРёСЏ РїСЂРµРґРѕРїСЂРµРґРµР»РµРЅРЅС‹С… Р·Р°РїСЂРѕСЃРѕРІ
         private readonly Dictionary<string, PredefinedQuery> _queries = new Dictionary<string, PredefinedQuery>();
 
-        // Текущий выбранный запрос
+        // РўРµРєСѓС‰РёР№ РІС‹Р±СЂР°РЅРЅС‹Р№ Р·Р°РїСЂРѕСЃ
         private PredefinedQuery _currentQuery;
 
-        // массивы атрибутов и заголовков свободного поиска
+        // РњР°СЃСЃРёРІС‹ Р°С‚СЂРёР±СѓС‚РѕРІ Рё Р·Р°РіРѕР»РѕРІРєРѕРІ СЃРІРѕР±РѕРґРЅРѕРіРѕ РїРѕРёСЃРєР°
         private string[] freeProperties = { "displayName", "sAMAccountName", "pwdLastSet", "distinguishedName" };
-        private string[] freeDisplayNames = { "Имя", "Логин", "Последняя смена пароля", "Расположение" };
+        private string[] freeDisplayNames = { "РРјСЏ", "Р›РѕРіРёРЅ", "РџРѕСЃР»РµРґРЅСЏСЏ СЃРјРµРЅР° РїР°СЂРѕР»СЏ", "Р Р°СЃРїРѕР»РѕР¶РµРЅРёРµ" };
 
         public Form1()
         {
             InitializeComponent();
 
-            // Инициализация компонентов интерфейса
+            // РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ РєРѕРјРїРѕРЅРµРЅС‚РѕРІ РёРЅС‚РµСЂС„РµР№СЃР°
             SetupUI();
 
-            // Загрузка предопределенных запросов
+            // Р—Р°РіСЂСѓР·РєР° РїСЂРµРґРѕРїСЂРµРґРµР»РµРЅРЅС‹С… Р·Р°РїСЂРѕСЃРѕРІ
             InitializePredefinedQueries();
 
-            // Настройка выпадающего списка
+            // РќР°СЃС‚СЂРѕР№РєР° РІС‹РїР°РґР°СЋС‰РµРіРѕ СЃРїРёСЃРєР°
             InitializeComboBox();
         }
 
-        // Настройка элементов интерфейса
+        // РќР°СЃС‚СЂРѕР№РєР° СЌР»РµРјРµРЅС‚РѕРІ РёРЅС‚РµСЂС„РµР№СЃР°
         private void SetupUI()
         {
-            // Настройка DataGridView
+            // РќР°СЃС‚СЂРѕР№РєР° DataGridView
             dgvResults.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
             dgvResults.ReadOnly = true;
             dgvResults.AllowUserToAddRows = false;
             dgvResults.ShowCellToolTips = true;
 
-            // Настройка ComboBox
+            // РќР°СЃС‚СЂРѕР№РєР° ComboBox
             cmbQueries.DropDownStyle = ComboBoxStyle.DropDownList;
             cmbFreeSearch.DropDownStyle = ComboBoxStyle.DropDownList;
 
-            // Скрываем панель свободного поиска по умолчанию
+            // РЎРєСЂС‹РІР°РµРј РїР°РЅРµР»СЊ СЃРІРѕР±РѕРґРЅРѕРіРѕ РїРѕРёСЃРєР° РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ
             pnlFreeSearch.Visible = false;
             pnlOUSearch.Visible = false;
             pnlTimeSearch.Visible = false;
             pnlOSSearch.Visible = false;
         }
 
-        // Инициализация предопределенных запросов
+        // РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ РїСЂРµРґРѕРїСЂРµРґРµР»РµРЅРЅС‹С… Р·Р°РїСЂРѕСЃРѕРІ
         private void InitializePredefinedQueries()
         {
-            _queries.Add("1. Неактивные ПК", new PredefinedQuery(
+            _queries.Add("1. РќРµР°РєС‚РёРІРЅС‹Рµ РџРљ", new PredefinedQuery(
                 filter: $"(objectCategory=computer)(lastLogon<={DateTime.Now.AddMonths(-3).ToFileTime()})",
                 properties: new[] { "displayName", "lastLogon", "operatingSystem", "distinguishedName" },
-                displayNames: new[] { "Имя ПК", "Последний вход", "ОС", "Расположение" }
+                displayNames: new[] { "РРјСЏ РџРљ", "РџРѕСЃР»РµРґРЅРёР№ РІС…РѕРґ", "РћРЎ", "Р Р°СЃРїРѕР»РѕР¶РµРЅРёРµ" }
                 ));
-            _queries.Add("2. Устаревшие ОС", new PredefinedQuery(
-                filter: "(objectCategory=computer)(|(operatingSystem=*Windows 7 Профессиональная*)(operatingSystem=*Windows XP Professional*))",
+            _queries.Add("2. РЈСЃС‚Р°СЂРµРІС€РёРµ РћРЎ", new PredefinedQuery(
+                filter: "(objectCategory=computer)(|(operatingSystem=*Windows 7*)(operatingSystem=*Windows XP Professional*))",
                 properties: new[] { "displayName", "operatingSystem", "operatingSystemVersion", "whenChanged", "distinguishedName" },
-                displayNames: new[] { "Имя ПК", "ОС", "Версия ОС", "Последнее обновление", "Расположение" }
+                displayNames: new[] { "РРјСЏ РџРљ", "РћРЎ", "Р’РµСЂСЃРёСЏ РћРЎ", "РџРѕСЃР»РµРґРЅРµРµ РѕР±РЅРѕРІР»РµРЅРёРµ", "Р Р°СЃРїРѕР»РѕР¶РµРЅРёРµ" }
                 ));
-            _queries.Add("3. Неактивные УЗ", new PredefinedQuery(//TimestampTimestamp
+            _queries.Add("3. РќРµР°РєС‚РёРІРЅС‹Рµ РЈР—", new PredefinedQuery(//TimestampTimestamp
                 filter: $"(objectCategory=user)(lastLogon<={DateTime.Now.AddMonths(-6).ToFileTime()})(!userAccountControl:1.2.840.113556.1.4.803:=2)",
                 properties: new[] { "displayName", "sAMAccountName", "lastLogon", "distinguishedName", "userAccountControl" },
-                displayNames: new[] { "Имя", "Логин", "Последний вход", "Расположение", "Флаг" }
+                displayNames: new[] { "РРјСЏ", "Р›РѕРіРёРЅ", "РџРѕСЃР»РµРґРЅРёР№ РІС…РѕРґ", "Р Р°СЃРїРѕР»РѕР¶РµРЅРёРµ", "Р¤Р»Р°Рі" }
                 ));
-            _queries.Add("4. ПК без ПО", new PredefinedQuery(
+            _queries.Add("4. РџРљ Р±РµР· РџРћ", new PredefinedQuery(
                 filter: "(objectCategory=computer)",
                 properties: new[] { "displayName", "dNSHostName", "distinguishedName", "memberOf" },
-                displayNames: new[] { "Имя ПК", "Доменное имя", "Расположение", "Группы" }
+                displayNames: new[] { "РРјСЏ РџРљ", "Р”РѕРјРµРЅРЅРѕРµ РёРјСЏ", "Р Р°СЃРїРѕР»РѕР¶РµРЅРёРµ", "Р“СЂСѓРїРїС‹" }
                 ));
-            _queries.Add("5. УЗ без паролей", new PredefinedQuery(
+            _queries.Add("5. РЈР— Р±РµР· РїР°СЂРѕР»РµР№", new PredefinedQuery(
                 filter: "(objectCategory=user)(userAccountControl:1.2.840.113556.1.4.803:=32)(!userAccountControl:1.2.840.113556.1.4.803:=2)",
                 properties: new[] { "displayName", "sAMAccountName", "distinguishedName", "userAccountControl" },
-                displayNames: new[] { "Имя", "Логин", "Расположение", "Флаг" }
+                displayNames: new[] { "РРјСЏ", "Р›РѕРіРёРЅ", "Р Р°СЃРїРѕР»РѕР¶РµРЅРёРµ", "Р¤Р»Р°Рі" }
                 ));
-            _queries.Add("6. УЗ с почтой", new PredefinedQuery(
+            _queries.Add("6. РЈР— СЃ РїРѕС‡С‚РѕР№", new PredefinedQuery(
                 filter: "(objectCategory=user)(userAccountControl:1.2.840.113556.1.4.803:=2)(msExchModerationFlags>=1)",
                 properties: new[] { "displayName", "mail", "msExchModerationFlags", "distinguishedName", "userAccountControl" },
-                displayNames: new[] { "Имя", "Почта", "Модерация", "Расположение", "Флаг" }
+                displayNames: new[] { "РРјСЏ", "РџРѕС‡С‚Р°", "РњРѕРґРµСЂР°С†РёСЏ", "Р Р°СЃРїРѕР»РѕР¶РµРЅРёРµ", "Р¤Р»Р°Рі" }
                 ));
-            _queries.Add("7. И RW и RO", new PredefinedQuery(
+            _queries.Add("7. Р RW Рё RO", new PredefinedQuery(
                 filter: "(objectCategory=user)(!userAccountControl:1.2.840.113556.1.4.803:=2)",
                 properties: new[] { "displayName", "memberOf", "distinguishedName", "userAccountControl" },
-                displayNames: new[] { "Имя", "Группы", "Расположение", "Флаг" }
+                displayNames: new[] { "РРјСЏ", "Р“СЂСѓРїРїС‹", "Р Р°СЃРїРѕР»РѕР¶РµРЅРёРµ", "Р¤Р»Р°Рі" }
                 ));
-            _queries.Add("8. ПК в WDS_Drop", new PredefinedQuery(
+            _queries.Add("8. РџРљ РІ WDS_Drop", new PredefinedQuery(
                 filter: "(objectCategory=computer)",
                 properties: new[] { "displayName", "whenCreated", "distinguishedName" },
-                displayNames: new[] { "Имя ПК", "Когда создали", "Расположение" }
+                displayNames: new[] { "РРјСЏ РџРљ", "РљРѕРіРґР° СЃРѕР·РґР°Р»Рё", "Р Р°СЃРїРѕР»РѕР¶РµРЅРёРµ" }
                 ));
-            _queries.Add("9. Вечные пароли", new PredefinedQuery(
+            _queries.Add("9. Р’РµС‡РЅС‹Рµ РїР°СЂРѕР»Рё", new PredefinedQuery(
                 filter: "(objectCategory=user)(userAccountControl:1.2.840.113556.1.4.803:=65536)(!userAccountControl:1.2.840.113556.1.4.803:=2)",
                 properties: new[] { "displayName", "sAMAccountName", "pwdLastSet", "distinguishedName", "userAccountControl" },
-                displayNames: new[] { "Имя", "Логин", "Последняя смена пароля", "Расположение", "Флаг" }
+                displayNames: new[] { "РРјСЏ", "Р›РѕРіРёРЅ", "РџРѕСЃР»РµРґРЅСЏСЏ СЃРјРµРЅР° РїР°СЂРѕР»СЏ", "Р Р°СЃРїРѕР»РѕР¶РµРЅРёРµ", "Р¤Р»Р°Рі" }
                 ));
-            _queries.Add("10. Свободный поиск", new PredefinedQuery(
+            _queries.Add("10. РЎРІРѕР±РѕРґРЅС‹Р№ РїРѕРёСЃРє", new PredefinedQuery(
                 filter: "(objectCategory=user)(objectClass=*)",
                 properties: freeProperties,
                 displayNames: freeDisplayNames
                 ));
-            _queries.Add("11. Юзеры группы", new PredefinedQuery(
+            _queries.Add("11. Р®Р·РµСЂС‹ РіСЂСѓРїРїС‹", new PredefinedQuery(
                 filter: "(objectCategory=user)(!userAccountControl:1.2.840.113556.1.4.803:=2)",
                 properties: new[] { "displayName", "sAMAccountName", "memberOf", "distinguishedName" },
-                displayNames: new[] { "Имя", "Логин", "Группы", "Расположение" }
+                displayNames: new[] { "РРјСЏ", "Р›РѕРіРёРЅ", "Р“СЂСѓРїРїС‹", "Р Р°СЃРїРѕР»РѕР¶РµРЅРёРµ" }
                 ));
         }
 
-        // Заполнение выпадающего списка запросами
+        // Р—Р°РїРѕР»РЅРµРЅРёРµ РІС‹РїР°РґР°СЋС‰РµРіРѕ СЃРїРёСЃРєР° Р·Р°РїСЂРѕСЃР°РјРё
         private void InitializeComboBox()
         {
             cmbQueries.BeginUpdate();
@@ -145,25 +145,25 @@ namespace ADlook
             cmbFreeSearch.SelectedIndex = 0;
         }
 
-        // Обработчик изменения выбранного запроса
+        // Р·Р°РїРѕР»РЅРµРЅРёРµ РІС‹РїР°РґР°СЋС‰РµРіРѕ СЃРїРёСЃРєР° Р·Р°РїСЂРѕСЃР°РјРё
         private void cmbQueries_SelectedIndexChanged(object sender, EventArgs e)
         {
-            // Очищаем предыдущие результаты
+            // РћС‡РёС‰Р°РµРј РїСЂРµРґС‹РґСѓС‰РёРµ СЂРµР·СѓР»СЊС‚Р°С‚С‹
             dgvResults.Columns.Clear();
             dgvResults.Rows.Clear();
-            lblStatus.Text = "Найдено: 0 записей";
+            lblStatus.Text = "РќР°Р№РґРµРЅРѕ: 0 Р·Р°РїРёСЃРµР№";
 
             string selectedKey = cmbQueries.SelectedItem.ToString();
 
             _currentQuery = _queries[selectedKey];
 
-            // Показываем панель только для свободного поиска
-            pnlFreeSearch.Visible = (selectedKey == "10. Свободный поиск");
-            pnlOUSearch.Visible = (selectedKey == "10. Свободный поиск" || selectedKey == "9. Вечные пароли" ||
-                selectedKey == "1. Неактивные ПК" || selectedKey == "2. Устаревшие ОС" ||
-                selectedKey == "3. Неактивные УЗ" || selectedKey == "11. Юзеры группы");
-            pnlTimeSearch.Visible = (selectedKey == "1. Неактивные ПК" || selectedKey == "3. Неактивные УЗ");
-            pnlOSSearch.Visible = (selectedKey == "2. Устаревшие ОС" || selectedKey == "11. Юзеры группы");
+            // РџРѕРєР°Р·С‹РІР°РµРј РїР°РЅРµР»СЊ С‚РѕР»СЊРєРѕ РґР»СЏ СЃРІРѕР±РѕРґРЅРѕРіРѕ РїРѕРёСЃРєР°
+            pnlFreeSearch.Visible = (selectedKey == "10. РЎРІРѕР±РѕРґРЅС‹Р№ РїРѕРёСЃРє");
+            pnlOUSearch.Visible = (selectedKey == "10. РЎРІРѕР±РѕРґРЅС‹Р№ РїРѕРёСЃРє" || selectedKey == "9. Р’РµС‡РЅС‹Рµ РїР°СЂРѕР»Рё" ||
+                selectedKey == "1. РќРµР°РєС‚РёРІРЅС‹Рµ РџРљ" || selectedKey == "2. РЈСЃС‚Р°СЂРµРІС€РёРµ РћРЎ" ||
+                selectedKey == "3. РќРµР°РєС‚РёРІРЅС‹Рµ РЈР—" || selectedKey == "11. Р®Р·РµСЂС‹ РіСЂСѓРїРїС‹");
+            pnlTimeSearch.Visible = (selectedKey == "1. РќРµР°РєС‚РёРІРЅС‹Рµ РџРљ" || selectedKey == "3. РќРµР°РєС‚РёРІРЅС‹Рµ РЈР—");
+            pnlOSSearch.Visible = (selectedKey == "2. РЈСЃС‚Р°СЂРµРІС€РёРµ РћРЎ" || selectedKey == "11. Р®Р·РµСЂС‹ РіСЂСѓРїРїС‹");
 
             if (pnlFreeSearch.Visible)
             {
@@ -179,15 +179,15 @@ namespace ADlook
             }
             if (pnlOSSearch.Visible)
             {
-                if (selectedKey == "2. Устаревшие ОС")
+                if (selectedKey == "2. РЈСЃС‚Р°СЂРµРІС€РёРµ РћРЎ")
                 {
-                    label5.Text = "ОС";
-                    label6.Text = "перчислять через";
-                    label7.Text = "запятую";
+                    label5.Text = "РћРЎ";
+                    label6.Text = "РїРµСЂРµС‡РёСЃР»СЏС‚СЊ С‡РµСЂРµР·";
+                    label7.Text = "Р·Р°РїСЏС‚СѓСЋ";
                 }
-                if (selectedKey == "11. Юзеры группы")
+                if (selectedKey == "11. Р®Р·РµСЂС‹ РіСЂСѓРїРїС‹")
                 {
-                    label5.Text = "Группа";
+                    label5.Text = "Р“СЂСѓРїРїР°";
                     label6.Text = " ";
                     label7.Text = " ";
                 }
@@ -195,21 +195,21 @@ namespace ADlook
             }
         }
 
-        // Выполняет текущий запрос
+        // Р’С‹РїРѕР»РЅСЏРµС‚ С‚РµРєСѓС‰РёР№ Р·Р°РїСЂРѕСЃ
         private void ExecuteQuery()
         {
             var results = _adService.Search(_currentQuery.Filter, _currentQuery.Properties);
             DisplayResults(results);
         }
 
-        // Отображение результатов в DataGridView
+        // РћС‚РѕР±СЂР°Р¶РµРЅРёРµ СЂРµР·СѓР»СЊС‚Р°С‚РѕРІ РІ DataGridView
         private void DisplayResults(List<AdObject> results)
         {
-            // Очищаем предыдущие результаты
+            // РћС‡РёС‰Р°РµРј РїСЂРµРґС‹РґСѓС‰РёРµ СЂРµР·СѓР»СЊС‚Р°С‚С‹
             dgvResults.Columns.Clear();
             dgvResults.Rows.Clear();
 
-            // Создание столбцов
+            // РЎРѕР·РґР°РЅРёРµ СЃС‚РѕР»Р±С†РѕРІ
             for (int i = 0; i < _currentQuery.DisplayNames.Length; i++)
             {
                 dgvResults.Columns.Add(
@@ -218,64 +218,64 @@ namespace ADlook
                 );
             }
 
-            // Постобработка запросов
-            // Запрс 1
+            // РџРѕСЃС‚РѕР±СЂР°Р±РѕС‚РєР° Р·Р°РїСЂРѕСЃРѕРІ
+            // Р—Р°РїСЂРѕСЃ 1
             if (cmbQueries.SelectedIndex == 0)
             {
                 FilterOU(results, txt3.Text);
             }
 
-            // Запрс 2
+            // Р—Р°РїСЂРѕСЃ 2
             if (cmbQueries.SelectedIndex == 1)
             {
                 FilterOU(results, txt3.Text);
             }
 
-            // Запрс 3
+            // Р—Р°РїСЂРѕСЃ 3
             if (cmbQueries.SelectedIndex == 2)
             {
                 FilterOU(results, txt3.Text);
             }
 
-            // Запрос 4
+            // Р—Р°РїСЂРѕСЃ 4
             if (cmbQueries.SelectedIndex == 3)
             {
                 FilterSoftwareGroups(results);
             }
 
-            // Запрос 7
+            // Р—Р°РїСЂРѕСЃ 7
             if (cmbQueries.SelectedIndex == 6)
             {
-                FilterRWRO(results);// Подумать добавить столб конфилкт групп
+                FilterRWRO(results);
             }
 
-            // Запрос 8
+            // Р—Р°РїСЂРѕСЃ 8
             if (cmbQueries.SelectedIndex == 7)
             {
                 FilterOU(results);
             }
 
-            // Запрс 9
+            // Р—Р°РїСЂРѕСЃ 9
             //if (cmbQueries.SelectedIndex == 8)
             //{
             //    //FilterUsersWithMissingOu(results);
             //    FilterOneMoreGroup(results);
             //}
 
-            // Запрс 9
+            // Р—Р°РїСЂРѕСЃ 9
             if (cmbQueries.SelectedIndex == 8)
             {
                 FilterOU(results, txt3.Text);
             }
 
-            // Запрс 10
+            // Р—Р°РїСЂРѕСЃ 10
             if (cmbQueries.SelectedIndex == 9)
             {
                 if (!string.IsNullOrWhiteSpace(txt3.Text))
                     FilterOU(results, txt3.Text);
             }
 
-            // Запрс 11
+            // Р—Р°РїСЂРѕСЃ 11
             if (cmbQueries.SelectedIndex == 10)
             {
                 if (!string.IsNullOrWhiteSpace(txt3.Text))
@@ -285,7 +285,7 @@ namespace ADlook
                     FilterGroup(results, txt4.Text);
             }
 
-            // Заполняем данными
+            // Р—Р°РїРѕР»РЅСЏРµРј РґР°РЅРЅС‹РјРё
             foreach (var item in results)
             {
                 int rowIndex = dgvResults.Rows.Add();
@@ -297,10 +297,10 @@ namespace ADlook
                 }
             }
 
-            lblStatus.Text = $"Найдено: {results.Count} записей";
+            lblStatus.Text = $"РќР°Р№РґРµРЅРѕ: {results.Count} Р·Р°РїРёСЃРµР№";
         }
 
-        // Фильтрация комрьютеров по группам установки ОП
+        // Р¤РёР»СЊС‚СЂР°С†РёСЏ РєРѕРјРїСЊСЋС‚РµСЂРѕРІ РїРѕ РіСЂСѓРїРїР°Рј СѓСЃС‚Р°РЅРѕРІРєРё РћРЎ
         private void FilterSoftwareGroups(List<AdObject> computers)
         {
             var requiredFullGroups = new List<string>
@@ -312,23 +312,23 @@ namespace ADlook
                 //""
             };
 
-            // Создаем словарь для быстрого поиска
+            // РЎРѕР·РґР°РµРј СЃР»РѕРІР°СЂСЊ РґР»СЏ Р±С‹СЃС‚СЂРѕРіРѕ РїРѕРёСЃРєР°
             var requiredGroupsSet = new HashSet<string>(
                 requiredFullGroups,
                 StringComparer.OrdinalIgnoreCase);
 
-            // Удаляем компьютеры которые состоят во всех обязятельных группах
+            // РЈРґР°Р»СЏРµРј РєРѕРјРїСЊСЋС‚РµСЂС‹, РєРѕС‚РѕСЂС‹Рµ СЃРѕСЃС‚РѕСЏС‚ РІРѕ РІСЃРµС… РѕР±СЏР·Р°С‚РµР»СЊРЅС‹С… РіСЂСѓРїРїР°С…
             computers.RemoveAll(computer =>
             {
-                // Получаем список групп компьютера
+                // РџРѕР»СѓС‡Р°РµРј СЃРїРёСЃРѕРє РіСЂСѓРїРї РєРѕРјРїСЊСЋС‚РµСЂР°
                 string groupsValue = computer.GetPropertyValue("memberOf")?.ToString() ?? "";
                 if (string.IsNullOrEmpty(groupsValue))
                     return false;
 
-                // Проверяем наличие всех обязательных групп
+                // РџСЂРѕРІРµСЂСЏРµРј РЅР°Р»РёС‡РёРµ РІСЃРµС… РѕР±СЏР·Р°С‚РµР»СЊРЅС‹С… РіСЂСѓРїРї
                 foreach (var requiredGroup in requiredGroupsSet)
                 {
-                    // Ищем группу в списке групп компьютера
+                    // РС‰РµРј РіСЂСѓРїРїСѓ РІ СЃРїРёСЃРєРµ РіСЂСѓРїРї РєРѕРјРїСЊСЋС‚РµСЂР°
                     bool found = false;
                     foreach (var computerGroup in groupsValue.Split(';'))
                     {
@@ -339,16 +339,16 @@ namespace ADlook
                         }
                     }
 
-                    // Если не нашли хотябы одну группу оставляем пк в результатах
+                    // Р•СЃР»Рё РЅРµ РЅР°С€Р»Рё С…РѕС‚СЏ Р±С‹ РѕРґРЅСѓ РіСЂСѓРїРїСѓ вЂ” РѕСЃС‚Р°РІР»СЏРµРј РџРљ РІ СЂРµР·СѓР»СЊС‚Р°С‚Р°С…
                     if (!found) return false;
                 }
 
-                // Удаляем компьютер из результатов, тк все группы найдены
+                // РЈРґР°Р»СЏРµРј РєРѕРјРїСЊСЋС‚РµСЂ РёР· СЂРµР·СѓР»СЊС‚Р°С‚РѕРІ, С‚Р°Рє РєР°Рє РІСЃРµ РіСЂСѓРїРїС‹ РЅР°Р№РґРµРЅС‹
                 return true;
             });
         }
 
-        // Фильтрация компьютеров в _WDS Drop
+        // Р¤РёР»СЊС‚СЂР°С†РёСЏ РєРѕРјРїСЊСЋС‚РµСЂРѕРІ РІ _WDS Drop
         private void FilterOU(List<AdObject> computers, string ou = "_WDS Drop")
         {
             computers.RemoveAll(computer =>
@@ -358,20 +358,20 @@ namespace ADlook
             });
         }
 
-        // Фильтрация по наличию отдела
+        // Р¤РёР»СЊС‚СЂР°С†РёСЏ РїРѕ РЅР°Р»РёС‡РёСЋ РѕС‚РґРµР»Р°
         private void FilterGroup(List<AdObject> results, string group)
         {
-            // Удаляем записи которые не имеют нужной группы
+            // РЈРґР°Р»СЏРµРј Р·Р°РїРёСЃРё, РєРѕС‚РѕСЂС‹Рµ РЅРµ РёРјРµСЋС‚ РЅСѓР¶РЅРѕР№ РіСЂСѓРїРїС‹
             results.RemoveAll(res =>
             {
-                // Получаем список групп
+                // РџРѕР»СѓС‡Р°РµРј СЃРїРёСЃРѕРє РіСЂСѓРїРї
                 string groupsValue = res.GetPropertyValue("memberOf")?.ToString() ?? "";
                 if (string.IsNullOrEmpty(groupsValue))
                     return true;
 
                 bool flag = false;
 
-                // Проверяем наличие группы
+                // РџСЂРѕРІРµСЂСЏРµРј РЅР°Р»РёС‡РёРµ РіСЂСѓРїРїС‹
                 foreach (var Group in groupsValue.Split(';'))
                 {
                     if (!string.IsNullOrEmpty(Group) && Group[0] == ' ')
@@ -389,73 +389,73 @@ namespace ADlook
                         }
                     }
 
-                    // Если нашли группу оставляем результат
+                    // Р•СЃР»Рё РЅР°С€Р»Рё РіСЂСѓРїРїСѓ РѕСЃС‚Р°РІР»СЏРµРј СЂРµР·СѓР»СЊС‚Р°С‚
                     if (flag) return false;
                 }
 
-                // Удаляем результат, тк не нашли группу
+                // РЈРґР°Р»СЏРµРј СЂРµР·СѓР»СЊС‚Р°С‚, С‚Р°Рє РєР°Рє РЅРµ РЅР°С€Р»Рё РіСЂСѓРїРїСѓ
                 return true;
             });
         }
 
-        // Фильтрует пользователей, имеющих хотя бы одну пару групп RW/RO
+        // Г”ГЁГ«ГјГІГ°ГіГҐГІ ГЇГ®Г«ГјГ§Г®ГўГ ГІГҐГ«ГҐГ©, ГЁГ¬ГҐГѕГ№ГЁГµ ГµГ®ГІГї ГЎГ» Г®Г¤Г­Гі ГЇГ Г°Гі ГЈГ°ГіГЇГЇ RW/RO
         private void FilterRWRO(List<AdObject> users)
         {
-            //Удаляем пользователей без парных групп
+            //Г“Г¤Г Г«ГїГҐГ¬ ГЇГ®Г«ГјГ§Г®ГўГ ГІГҐГ«ГҐГ© ГЎГҐГ§ ГЇГ Г°Г­Г»Гµ ГЈГ°ГіГЇГЇ
             users.RemoveAll(users =>
             {
-                // Получаем список групп
+                // ГЏГ®Г«ГіГ·Г ГҐГ¬ Г±ГЇГЁГ±Г®ГЄ ГЈГ°ГіГЇГЇ
                 string groupsValue = users.GetPropertyValue("memberOf").ToString() ?? "";
                 var userGroups = groupsValue.Split(";").Select(g => g.Trim()).ToList();
 
-                // Собираем базовые имена групп
+                // Г‘Г®ГЎГЁГ°Г ГҐГ¬ ГЎГ Г§Г®ГўГ»ГҐ ГЁГ¬ГҐГ­Г  ГЈГ°ГіГЇГЇ
                 var baseNames = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
 
                 foreach (var userGroup in userGroups)
                 {
-                    // Проверяем суффиксы RW/ RO
+                    // ГЏГ°Г®ГўГҐГ°ГїГҐГ¬ Г±ГіГґГґГЁГЄГ±Г» RW/ RO
                     if (userGroup.EndsWith("_RW", StringComparison.OrdinalIgnoreCase) ||
                     userGroup.EndsWith("_RO", StringComparison.OrdinalIgnoreCase))
                     {
-                        // Извлекаем базовое имя группы
+                        // Г€Г§ГўГ«ГҐГЄГ ГҐГ¬ ГЎГ Г§Г®ГўГ®ГҐ ГЁГ¬Гї ГЈГ°ГіГЇГЇГ»
                         string baseName = userGroup.Substring(0, userGroup.Length - 3);
 
-                        // Инициализируем коллекцию для базового имени
+                        // Г€Г­ГЁГ¶ГЁГ Г«ГЁГ§ГЁГ°ГіГҐГ¬ ГЄГ®Г«Г«ГҐГЄГ¶ГЁГѕ Г¤Г«Гї ГЎГ Г§Г®ГўГ®ГЈГ® ГЁГ¬ГҐГ­ГЁ
                         if (!baseNames.ContainsKey(baseName))
                             baseNames[baseName] = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-                        // Добавляем суффикс (RW или RO)
+                        // Г„Г®ГЎГ ГўГ«ГїГҐГ¬ Г±ГіГґГґГЁГЄГ± (RW ГЁГ«ГЁ RO)
                         string suffix = userGroup.Substring(userGroup.Length - 2);
                         baseNames[baseName].Add(suffix);
                     }
                 }
 
-                // Проверяем наличие парных групп
+                // ГЏГ°Г®ГўГҐГ°ГїГҐГ¬ Г­Г Г«ГЁГ·ГЁГҐ ГЇГ Г°Г­Г»Гµ ГЈГ°ГіГЇГЇ
                 foreach (var suffixes in baseNames.Values)
                 {
-                    // Если для базового имени есть оба суффикса
+                    // Г…Г±Г«ГЁ Г¤Г«Гї ГЎГ Г§Г®ГўГ®ГЈГ® ГЁГ¬ГҐГ­ГЁ ГҐГ±ГІГј Г®ГЎГ  Г±ГіГґГґГЁГЄГ±Г 
                     if (suffixes.Contains("RW") && suffixes.Contains("RO"))
-                        return false; // Оставляем пользователя в результатах
+                        return false; // ГЋГ±ГІГ ГўГ«ГїГҐГ¬ ГЇГ®Г«ГјГ§Г®ГўГ ГІГҐГ«Гї Гў Г°ГҐГ§ГіГ«ГјГІГ ГІГ Гµ
                 }
 
-                // Нет парных групп - удаляем пользователя
+                // ГЌГҐГІ ГЇГ Г°Г­Г»Гµ ГЈГ°ГіГЇГЇ - ГіГ¤Г Г«ГїГҐГ¬ ГЇГ®Г«ГјГ§Г®ГўГ ГІГҐГ«Гї
                 return true;
             });
         }
 
-        // Фильтрует пользователейс группами GRUS_*, не имеющими соответствующего OU в DN
+        // Г”ГЁГ«ГјГІГ°ГіГҐГІ ГЇГ®Г«ГјГ§Г®ГўГ ГІГҐГ«ГҐГ©Г± ГЈГ°ГіГЇГЇГ Г¬ГЁ GRUS_*, Г­ГҐ ГЁГ¬ГҐГѕГ№ГЁГ¬ГЁ Г±Г®Г®ГІГўГҐГІГ±ГІГўГіГѕГ№ГҐГЈГ® OU Гў DN
         private void FilterUsersWithMissingOu(List<AdObject> users)
         {
             users.RemoveAll(user =>
             {
-                // Преобразуем группы и путь в строки
+                // ГЏГ°ГҐГ®ГЎГ°Г Г§ГіГҐГ¬ ГЈГ°ГіГЇГЇГ» ГЁ ГЇГіГІГј Гў Г±ГІГ°Г®ГЄГЁ
                 string dn = user.GetPropertyValue("distinguishedName")?.ToString() ?? "";
                 string groupsValue = user.GetPropertyValue("memberOf")?.ToString() ?? "";
 
-                // Создаем список проблемных групп
+                // Г‘Г®Г§Г¤Г ГҐГ¬ Г±ГЇГЁГ±Г®ГЄ ГЇГ°Г®ГЎГ«ГҐГ¬Г­Г»Гµ ГЈГ°ГіГЇГЇ
                 var problemGroups = new List<string>();
 
-                // Сравниваем наличие названия группы в пути
+                // Г‘Г°Г ГўГ­ГЁГўГ ГҐГ¬ Г­Г Г«ГЁГ·ГЁГҐ Г­Г Г§ГўГ Г­ГЁГї ГЈГ°ГіГЇГЇГ» Гў ГЇГіГІГЁ
                 foreach (var group in groupsValue.Split(';'))
                 {
                     string trimmed = group.Trim();
@@ -471,7 +471,7 @@ namespace ADlook
                     }
                 }
 
-                // Если есть проблемные группы - сохраняем их и оставляем пользователя
+                // Г…Г±Г«ГЁ ГҐГ±ГІГј ГЇГ°Г®ГЎГ«ГҐГ¬Г­Г»ГҐ ГЈГ°ГіГЇГЇГ» - Г±Г®ГµГ°Г Г­ГїГҐГ¬ ГЁГµ ГЁ Г®Г±ГІГ ГўГ«ГїГҐГ¬ ГЇГ®Г«ГјГ§Г®ГўГ ГІГҐГ«Гї
                 if (problemGroups.Count > 0)
                 {
                     user.SetProperty("ProblemGroups", string.Join("; ", problemGroups));
@@ -482,19 +482,19 @@ namespace ADlook
             });
         }
 
-        // Смотрим на наличие более чем одной группы отдела
+        // Г‘Г¬Г®ГІГ°ГЁГ¬ Г­Г  Г­Г Г«ГЁГ·ГЁГҐ ГЎГ®Г«ГҐГҐ Г·ГҐГ¬ Г®Г¤Г­Г®Г© ГЈГ°ГіГЇГЇГ» Г®ГІГ¤ГҐГ«Г 
         private void FilterOneMoreGroup(List<AdObject> users)
         {
             users.RemoveAll(user =>
             {
-                // Получаем строку групп
+                // ГЏГ®Г«ГіГ·Г ГҐГ¬ Г±ГІГ°Г®ГЄГі ГЈГ°ГіГЇГЇ
                 string groupsValue = user.GetPropertyValue("memberOf")?.ToString() ?? "";
 
                 int count = 0;
 
                 foreach (var group in groupsValue.Split(';'))
                 {
-                    // Если группа начинется с GRUS_ увеличиваем счетчик
+                    // Г…Г±Г«ГЁ ГЈГ°ГіГЇГЇГ  Г­Г Г·ГЁГ­ГҐГІГ±Гї Г± GRUS_ ГіГўГҐГ«ГЁГ·ГЁГўГ ГҐГ¬ Г±Г·ГҐГІГ·ГЁГЄ
                     string Tgroup = group.Trim();
                     if (Tgroup.StartsWith("GRUS_", StringComparison.OrdinalIgnoreCase) && !Tgroup.EndsWith("_HEAD", StringComparison.OrdinalIgnoreCase))
                     {
@@ -502,50 +502,50 @@ namespace ADlook
                     }
                 }
 
-                // Если пользователь только в одной группе отдела, удаляем его
+                // Г…Г±Г«ГЁ ГЇГ®Г«ГјГ§Г®ГўГ ГІГҐГ«Гј ГІГ®Г«ГјГЄГ® Гў Г®Г¤Г­Г®Г© ГЈГ°ГіГЇГЇГҐ Г®ГІГ¤ГҐГ«Г , ГіГ¤Г Г«ГїГҐГ¬ ГҐГЈГ®
                 if (count <= 1)
                 {
                     return true;
                 }
 
-                // Если более чем в одной или не в одной оставляем
+                // Г…Г±Г«ГЁ ГЎГ®Г«ГҐГҐ Г·ГҐГ¬ Гў Г®Г¤Г­Г®Г© ГЁГ«ГЁ Г­ГҐ Гў Г®Г¤Г­Г®Г© Г®Г±ГІГ ГўГ«ГїГҐГ¬
                 return false;
             });
         }
 
-        // Обработчик кнопки выполнения свободного поиска
+        // ГЋГЎГ°Г ГЎГ®ГІГ·ГЁГЄ ГЄГ­Г®ГЇГЄГЁ ГўГ»ГЇГ®Г«Г­ГҐГ­ГЁГї Г±ГўГ®ГЎГ®Г¤Г­Г®ГЈГ® ГЇГ®ГЁГ±ГЄГ 
         private void btnFreeSearch_Click(object sender, EventArgs e)
         {
-            if (pnlFreeSearch.Visible || pnlTimeSearch.Visible || (pnlOSSearch.Visible && label5.Text == "ОС"))
+            if (pnlFreeSearch.Visible || pnlTimeSearch.Visible || (pnlOSSearch.Visible && label5.Text == "ГЋГ‘"))
             {
-                // Построение фильтра на основе введенных данных
+                // ГЏГ®Г±ГІГ°Г®ГҐГ­ГЁГҐ ГґГЁГ«ГјГІГ°Г  Г­Г  Г®Г±Г­Г®ГўГҐ ГўГўГҐГ¤ГҐГ­Г­Г»Гµ Г¤Г Г­Г­Г»Гµ
                 _currentQuery.Filter = BuildFreeSearchFilter();
             }
 
-            // Выполнение запроса
+            // Г‚Г»ГЇГ®Г«Г­ГҐГ­ГЁГҐ Г§Г ГЇГ°Г®Г±Г 
             ExecuteQuery();
         }
 
-        // Строит фильтр для свободного поиска
+        // Г‘ГІГ°Г®ГЁГІ ГґГЁГ«ГјГІГ° Г¤Г«Гї Г±ГўГ®ГЎГ®Г¤Г­Г®ГЈГ® ГЇГ®ГЁГ±ГЄГ 
         private string BuildFreeSearchFilter()
         {
             if (pnlFreeSearch.Visible)
             {
                 var filters = new List<string>();
 
-                // Фильтр по логину
+                // Г”ГЁГ«ГјГІГ° ГЇГ® Г«Г®ГЈГЁГ­Гі
                 if (!string.IsNullOrWhiteSpace(txt1.Text))
                     filters.Add($"({freeProperties[0]}=*{txt1.Text}*)");
 
-                // Фильтр по имени
+                // Г”ГЁГ«ГјГІГ° ГЇГ® ГЁГ¬ГҐГ­ГЁ
                 if (!string.IsNullOrWhiteSpace(txt2.Text))
                     filters.Add($"({freeProperties[1]}=*{txt2.Text}*)");
 
-                // Базовый фильтр для пользователей
+                // ГЃГ Г§Г®ГўГ»Г© ГґГЁГ«ГјГІГ° Г¤Г«Гї ГЇГ®Г«ГјГ§Г®ГўГ ГІГҐГ«ГҐГ©
                 /* const */
                 string baseFilter = $"(objectCategory={cmbFreeSearch.SelectedItem.ToString()})";
 
-                // Комбинирование условий
+                // ГЉГ®Г¬ГЎГЁГ­ГЁГ°Г®ГўГ Г­ГЁГҐ ГіГ±Г«Г®ГўГЁГ©
                 if (filters.Count == 0)
                     return $"{baseFilter}(objectClass=*)";
 
@@ -558,11 +558,11 @@ namespace ADlook
                 string selectedKey = cmbQueries.SelectedItem.ToString();
                 long fileTime = dtpTimeSearcher.Value.ToFileTime();
 
-                if (selectedKey == "1. Неактивные ПК")
+                if (selectedKey == "1. ГЌГҐГ ГЄГІГЁГўГ­Г»ГҐ ГЏГЉ")
                 {
                     filter = $"(objectCategory=computer)(lastLogon<={fileTime})";
                 }
-                if (selectedKey == "3. Неактивные УЗ")
+                if (selectedKey == "3. ГЌГҐГ ГЄГІГЁГўГ­Г»ГҐ Г“Г‡")
                 {
                     filter = $"(objectCategory=user)(lastLogon<={fileTime})(!userAccountControl:1.2.840.113556.1.4.803:=2)";
                 }
@@ -592,7 +592,7 @@ namespace ADlook
             return "";
         }
 
-        // Обработчик изменения выбранного свободного запроса
+        // ГЋГЎГ°Г ГЎГ®ГІГ·ГЁГЄ ГЁГ§Г¬ГҐГ­ГҐГ­ГЁГї ГўГ»ГЎГ°Г Г­Г­Г®ГЈГ® Г±ГўГ®ГЎГ®Г¤Г­Г®ГЈГ® Г§Г ГЇГ°Г®Г±Г 
         private void cmbFreeSearch_SelectedIndexChanged(object sender, EventArgs e)
         {
             bool selectedKey = cmbQueries.SelectedIndex == 9;
@@ -604,26 +604,26 @@ namespace ADlook
 
             if (selectedCategory == "user" && selectedKey)
             {
-                label1.Text = "Логин";
-                label2.Text = "ФИО";
+                label1.Text = "Г‹Г®ГЈГЁГ­";
+                label2.Text = "Г”Г€ГЋ";
                 freeProperties = new[] { "displayName", "sAMAccountName", "pwdLastSet", "distinguishedName" };
-                freeDisplayNames = new[] { "Имя", "Логин", "Последняя смена пароля", "Расположение" };
+                freeDisplayNames = new[] { "Г€Г¬Гї", "Г‹Г®ГЈГЁГ­", "ГЏГ®Г±Г«ГҐГ¤Г­ГїГї Г±Г¬ГҐГ­Г  ГЇГ Г°Г®Г«Гї", "ГђГ Г±ГЇГ®Г«Г®Г¦ГҐГ­ГЁГҐ" };
                 _currentQuery.Properties = freeProperties;
                 _currentQuery.DisplayNames = freeDisplayNames;
             }
             if (selectedCategory == "computer" && selectedKey)
             {
-                label2.Text = "Название ПК";
-                label1.Text = "ОС";
+                label2.Text = "ГЌГ Г§ГўГ Г­ГЁГҐ ГЏГЉ";
+                label1.Text = "ГЋГ‘";
                 freeProperties = new[] { "displayName", "operatingSystem", "distinguishedName" };
-                freeDisplayNames = new[] { "Имя ПК", "ОС", "Расположение" };
+                freeDisplayNames = new[] { "Г€Г¬Гї ГЏГЉ", "ГЋГ‘", "ГђГ Г±ГЇГ®Г«Г®Г¦ГҐГ­ГЁГҐ" };
                 _currentQuery.Properties = freeProperties;
                 _currentQuery.DisplayNames = freeDisplayNames;
             }
 
         }
 
-        // Обработчик двойного нажатия в таблице
+        // ГЋГЎГ°Г ГЎГ®ГІГ·ГЁГЄ Г¤ГўГ®Г©Г­Г®ГЈГ® Г­Г Г¦Г ГІГЁГї Гў ГІГ ГЎГ«ГЁГ¶ГҐ
         private void dgvResults_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
@@ -631,7 +631,7 @@ namespace ADlook
             var cell = dgvResults.Rows[e.RowIndex].Cells[e.ColumnIndex];
             string fullText = cell.Value?.ToString() ?? "";
 
-            // Создаем форму для отображения
+            // Г‘Г®Г§Г¤Г ГҐГ¬ ГґГ®Г°Г¬Гі Г¤Г«Гї Г®ГІГ®ГЎГ°Г Г¦ГҐГ­ГЁГї
             using (Form textViewer = new Form())
             {
                 textViewer.Text = "Full text";
@@ -652,7 +652,7 @@ namespace ADlook
             }
         }
 
-        // Обработчик кнопки экспорта
+        // ГЋГЎГ°Г ГЎГ®ГІГ·ГЁГЄ ГЄГ­Г®ГЇГЄГЁ ГЅГЄГ±ГЇГ®Г°ГІГ 
         private void btnExport_Click(object sender, EventArgs e)
         {
             using (var dialog = new SaveFileDialog())
@@ -667,7 +667,7 @@ namespace ADlook
             }
         }
 
-        // Экспорт данных в Excel
+        // ГќГЄГ±ГЇГ®Г°ГІ Г¤Г Г­Г­Г»Гµ Гў Excel
         private void ExportToExcel(string filename)
         {
             Microsoft.Office.Interop.Excel.Application excelApp = null;
@@ -677,47 +677,47 @@ namespace ADlook
 
             try
             {
-                // Инициализация формы прогресса
-                progressForm = new ProgressForm("Экспорт в Excel", "Подготовка данных...");
+                // Г€Г­ГЁГ¶ГЁГ Г«ГЁГ§Г Г¶ГЁГї ГґГ®Г°Г¬Г» ГЇГ°Г®ГЈГ°ГҐГ±Г±Г 
+                progressForm = new ProgressForm("ГќГЄГ±ГЇГ®Г°ГІ Гў Excel", "ГЏГ®Г¤ГЈГ®ГІГ®ГўГЄГ  Г¤Г Г­Г­Г»Гµ...");
                 progressForm.Show();
                 System.Windows.Forms.Application.DoEvents();
 
-                // Создаем экземпляр Excel
+                // Г‘Г®Г§Г¤Г ГҐГ¬ ГЅГЄГ§ГҐГ¬ГЇГ«ГїГ° Excel
                 excelApp = new Microsoft.Office.Interop.Excel.Application();
                 excelApp.DisplayAlerts = false;
                 excelApp.Visible = false;
                 excelApp.ScreenUpdating = false;
 
-                // Создаем новую книгу
-                progressForm.UpdateMessage("Создание документа Excel...");
+                // Г‘Г®Г§Г¤Г ГҐГ¬ Г­Г®ГўГіГѕ ГЄГ­ГЁГЈГі
+                progressForm.UpdateMessage("Г‘Г®Г§Г¤Г Г­ГЁГҐ Г¤Г®ГЄГіГ¬ГҐГ­ГІГ  Excel...");
                 workbook = excelApp.Workbooks.Add(Type.Missing);
 
-                // Получаем первый лист
+                // ГЏГ®Г«ГіГ·Г ГҐГ¬ ГЇГҐГ°ГўГ»Г© Г«ГЁГ±ГІ
                 worksheet = (Worksheet)workbook.Sheets[1];
 
-                // Устанавливаем имя листа
+                // Г“Г±ГІГ Г­Г ГўГ«ГЁГўГ ГҐГ¬ ГЁГ¬Гї Г«ГЁГ±ГІГ 
                 string sheetName = cmbQueries.SelectedItem?.ToString() ?? "AD_Data";
                 if (sheetName.Length > 31) sheetName = sheetName.Substring(0, 31);
                 worksheet.Name = sheetName;
 
-                // Добавляем заголовки
+                // Г„Г®ГЎГ ГўГ«ГїГҐГ¬ Г§Г ГЈГ®Г«Г®ГўГЄГЁ
                 for (int col = 0; col < dgvResults.Columns.Count; col++)
                 {
                     if (progressForm.Cancelled) break;
 
                     worksheet.Cells[1, col + 1] = dgvResults.Columns[col].HeaderText;
 
-                    // Форматируем заголовки
+                    // Г”Г®Г°Г¬Г ГІГЁГ°ГіГҐГ¬ Г§Г ГЈГ®Г«Г®ГўГЄГЁ
                     Microsoft.Office.Interop.Excel.Range headerCell = (Microsoft.Office.Interop.Excel.Range)worksheet.Cells[1, col + 1];
                     headerCell.Font.Bold = true;
                     headerCell.Borders.Weight = XlBorderWeight.xlThick;
                 }
 
-                // Добавляем данные
+                // Г„Г®ГЎГ ГўГ«ГїГҐГ¬ Г¤Г Г­Г­Г»ГҐ
                 int totalRows = dgvResults.Rows.Count;
                 int currentRow = 0;
                 int rowIndex = 2;
-                progressForm.UpdateMessage("Экспорт данных...");
+                progressForm.UpdateMessage("ГќГЄГ±ГЇГ®Г°ГІ Г¤Г Г­Г­Г»Гµ...");
                 foreach (DataGridViewRow dgvRow in dgvResults.Rows)
                 {
                     if (progressForm.Cancelled) break;
@@ -725,7 +725,7 @@ namespace ADlook
 
                     currentRow++;
 
-                    // Обновляем прогресс каждые 10 строк или для каждой строки если строк меньше 50 или если осталось меньше 10 строк
+                    // ГЋГЎГ­Г®ГўГ«ГїГҐГ¬ ГЇГ°Г®ГЈГ°ГҐГ±Г± ГЄГ Г¦Г¤Г»ГҐ 10 Г±ГІГ°Г®ГЄ ГЁГ«ГЁ Г¤Г«Гї ГЄГ Г¦Г¤Г®Г© Г±ГІГ°Г®ГЄГЁ ГҐГ±Г«ГЁ Г±ГІГ°Г®ГЄ Г¬ГҐГ­ГјГёГҐ 50 ГЁГ«ГЁ ГҐГ±Г«ГЁ Г®Г±ГІГ Г«Г®Г±Гј Г¬ГҐГ­ГјГёГҐ 10 Г±ГІГ°Г®ГЄ
                     if (currentRow % 10 == 0 || totalRows < 50 || (totalRows - currentRow) <= 10)
                     {
                         progressForm.UpdateProgress(currentRow, totalRows);
@@ -733,10 +733,10 @@ namespace ADlook
 
                     for (int col = 0; col < dgvResults.Columns.Count; col++)
                     {
-                        // Получаем значение ячейки
+                        // ГЏГ®Г«ГіГ·Г ГҐГ¬ Г§Г­Г Г·ГҐГ­ГЁГҐ ГїГ·ГҐГ©ГЄГЁ
                         object value = dgvRow.Cells[col].Value;
 
-                        // Проверяем тип данных для правильного форматирования
+                        // ГЏГ°Г®ГўГҐГ°ГїГҐГ¬ ГІГЁГЇ Г¤Г Г­Г­Г»Гµ Г¤Г«Гї ГЇГ°Г ГўГЁГ«ГјГ­Г®ГЈГ® ГґГ®Г°Г¬Г ГІГЁГ°Г®ГўГ Г­ГЁГї
                         if (value is DateTime dateValue)
                         {
                             worksheet.Cells[rowIndex, col + 1] = dateValue;
@@ -753,39 +753,39 @@ namespace ADlook
 
                 if (progressForm.Cancelled)
                 {
-                    progressForm.UpdateMessage("Отмена операции...");
+                    progressForm.UpdateMessage("ГЋГІГ¬ГҐГ­Г  Г®ГЇГҐГ°Г Г¶ГЁГЁ...");
                     return;
                 }
 
-                // Авто настройка ширины столбцов
-                progressForm.UpdateMessage("Оптимизация столбцов...");
+                // ГЂГўГІГ® Г­Г Г±ГІГ°Г®Г©ГЄГ  ГёГЁГ°ГЁГ­Г» Г±ГІГ®Г«ГЎГ¶Г®Гў
+                progressForm.UpdateMessage("ГЋГЇГІГЁГ¬ГЁГ§Г Г¶ГЁГї Г±ГІГ®Г«ГЎГ¶Г®Гў...");
                 worksheet.Columns.AutoFit();
 
-                // Добавляем фильты
-                progressForm.UpdateMessage("Добавление фильтров...");
+                // Г„Г®ГЎГ ГўГ«ГїГҐГ¬ ГґГЁГ«ГјГІГ»
+                progressForm.UpdateMessage("Г„Г®ГЎГ ГўГ«ГҐГ­ГЁГҐ ГґГЁГ«ГјГІГ°Г®Гў...");
                 Microsoft.Office.Interop.Excel.Range usedRange = worksheet.UsedRange;
                 usedRange.AutoFilter(1, Type.Missing, XlAutoFilterOperator.xlAnd, Type.Missing, true);
 
-                // Сохраняем файл
-                progressForm.UpdateMessage("Сохранение файла...");
+                // Г‘Г®ГµГ°Г Г­ГїГҐГ¬ ГґГ Г©Г«
+                progressForm.UpdateMessage("Г‘Г®ГµГ°Г Г­ГҐГ­ГЁГҐ ГґГ Г©Г«Г ...");
                 workbook.SaveAs(filename, XlFileFormat.xlOpenXMLWorkbook);
 
-                progressForm.UpdateMessage("Экспорт завершен!");
+                progressForm.UpdateMessage("ГќГЄГ±ГЇГ®Г°ГІ Г§Г ГўГҐГ°ГёГҐГ­!");
                 progressForm.UpdateProgress(currentRow, totalRows);
 
-                MessageBox.Show($"Данные успешно экспортированы в:\n{filename}",
-                    "Экспорт завершен",
+                MessageBox.Show($"Г„Г Г­Г­Г»ГҐ ГіГ±ГЇГҐГёГ­Г® ГЅГЄГ±ГЇГ®Г°ГІГЁГ°Г®ГўГ Г­Г» Гў:\n{filename}",
+                    "ГќГЄГ±ГЇГ®Г°ГІ Г§Г ГўГҐГ°ГёГҐГ­",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при экспорте в Excel:\n{ex.Message}",
-                    "Ошибка",
+                MessageBox.Show($"ГЋГёГЁГЎГЄГ  ГЇГ°ГЁ ГЅГЄГ±ГЇГ®Г°ГІГҐ Гў Excel:\n{ex.Message}",
+                    "ГЋГёГЁГЎГЄГ ",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             finally
             {
-                // Очистка ресурсов
+                // ГЋГ·ГЁГ±ГІГЄГ  Г°ГҐГ±ГіГ°Г±Г®Гў
                 if (workbook != null && !progressForm.Cancelled)
                 {
                     workbook.Close(false);
@@ -799,10 +799,10 @@ namespace ADlook
                     Marshal.ReleaseComObject(excelApp);
                 }
 
-                // Освобождаем COM объекты
+                // ГЋГ±ГўГ®ГЎГ®Г¦Г¤Г ГҐГ¬ COM Г®ГЎГєГҐГЄГІГ»
                 if (worksheet != null) Marshal.ReleaseComObject(worksheet);
 
-                // Закрываем форму прогресса
+                // Г‡Г ГЄГ°Г»ГўГ ГҐГ¬ ГґГ®Г°Г¬Гі ГЇГ°Г®ГЈГ°ГҐГ±Г±Г 
                 if (progressForm != null)
                 {
                     if (!progressForm.IsDisposed)
@@ -812,7 +812,7 @@ namespace ADlook
                     }
                 }
 
-                // Принудительная сборка мусора для COM объектов
+                // ГЏГ°ГЁГ­ГіГ¤ГЁГІГҐГ«ГјГ­Г Гї Г±ГЎГ®Г°ГЄГ  Г¬ГіГ±Г®Г°Г  Г¤Г«Гї COM Г®ГЎГєГҐГЄГІГ®Гў
                 GC.Collect();
                 GC.WaitForPendingFinalizers();
             }
@@ -832,4 +832,5 @@ namespace ADlook
             DisplayNames = displayNames;
         }
     }
+
 }
