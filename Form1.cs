@@ -1,0 +1,835 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.DirectoryServices;
+using System.DirectoryServices.ActiveDirectory;
+using System.Windows.Forms;
+using System.Collections;
+using Microsoft.VisualBasic.Devices;
+using System.IO;
+using System.Runtime.InteropServices;
+using Microsoft.Office.Interop.Excel;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.Window;
+using Microsoft.VisualBasic.ApplicationServices;
+using System.Drawing;
+
+namespace ADlook
+{
+    public partial class Form1 : Form
+    {
+        // Сервис для работы с Active Directory
+        private readonly AdService _adService = new AdService();
+
+        // Словарь для хранения предопределенных запросов
+        private readonly Dictionary<string, PredefinedQuery> _queries = new Dictionary<string, PredefinedQuery>();
+
+        // Текущий выбранный запрос
+        private PredefinedQuery _currentQuery;
+
+        // массивы атрибутов и заголовков свободного поиска
+        private string[] freeProperties = { "displayName", "sAMAccountName", "pwdLastSet", "distinguishedName" };
+        private string[] freeDisplayNames = { "Имя", "Логин", "Последняя смена пароля", "Расположение" };
+
+        public Form1()
+        {
+            InitializeComponent();
+
+            // Инициализация компонентов интерфейса
+            SetupUI();
+
+            // Загрузка предопределенных запросов
+            InitializePredefinedQueries();
+
+            // Настройка выпадающего списка
+            InitializeComboBox();
+        }
+
+        // Настройка элементов интерфейса
+        private void SetupUI()
+        {
+            // Настройка DataGridView
+            dgvResults.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            dgvResults.ReadOnly = true;
+            dgvResults.AllowUserToAddRows = false;
+            dgvResults.ShowCellToolTips = true;
+
+            // Настройка ComboBox
+            cmbQueries.DropDownStyle = ComboBoxStyle.DropDownList;
+            cmbFreeSearch.DropDownStyle = ComboBoxStyle.DropDownList;
+
+            // Скрываем панель свободного поиска по умолчанию
+            pnlFreeSearch.Visible = false;
+            pnlOUSearch.Visible = false;
+            pnlTimeSearch.Visible = false;
+            pnlOSSearch.Visible = false;
+        }
+
+        // Инициализация предопределенных запросов
+        private void InitializePredefinedQueries()
+        {
+            _queries.Add("1. Неактивные ПК", new PredefinedQuery(
+                filter: $"(objectCategory=computer)(lastLogon<={DateTime.Now.AddMonths(-3).ToFileTime()})",
+                properties: new[] { "displayName", "lastLogon", "operatingSystem", "distinguishedName" },
+                displayNames: new[] { "Имя ПК", "Последний вход", "ОС", "Расположение" }
+                ));
+            _queries.Add("2. Устаревшие ОС", new PredefinedQuery(
+                filter: "(objectCategory=computer)(|(operatingSystem=*Windows 7 Профессиональная*)(operatingSystem=*Windows XP Professional*))",
+                properties: new[] { "displayName", "operatingSystem", "operatingSystemVersion", "whenChanged", "distinguishedName" },
+                displayNames: new[] { "Имя ПК", "ОС", "Версия ОС", "Последнее обновление", "Расположение" }
+                ));
+            _queries.Add("3. Неактивные УЗ", new PredefinedQuery(//TimestampTimestamp
+                filter: $"(objectCategory=user)(lastLogon<={DateTime.Now.AddMonths(-6).ToFileTime()})(!userAccountControl:1.2.840.113556.1.4.803:=2)",
+                properties: new[] { "displayName", "sAMAccountName", "lastLogon", "distinguishedName", "userAccountControl" },
+                displayNames: new[] { "Имя", "Логин", "Последний вход", "Расположение", "Флаг" }
+                ));
+            _queries.Add("4. ПК без ПО", new PredefinedQuery(
+                filter: "(objectCategory=computer)",
+                properties: new[] { "displayName", "dNSHostName", "distinguishedName", "memberOf" },
+                displayNames: new[] { "Имя ПК", "Доменное имя", "Расположение", "Группы" }
+                ));
+            _queries.Add("5. УЗ без паролей", new PredefinedQuery(
+                filter: "(objectCategory=user)(userAccountControl:1.2.840.113556.1.4.803:=32)(!userAccountControl:1.2.840.113556.1.4.803:=2)",
+                properties: new[] { "displayName", "sAMAccountName", "distinguishedName", "userAccountControl" },
+                displayNames: new[] { "Имя", "Логин", "Расположение", "Флаг" }
+                ));
+            _queries.Add("6. УЗ с почтой", new PredefinedQuery(
+                filter: "(objectCategory=user)(userAccountControl:1.2.840.113556.1.4.803:=2)(msExchModerationFlags>=1)",
+                properties: new[] { "displayName", "mail", "msExchModerationFlags", "distinguishedName", "userAccountControl" },
+                displayNames: new[] { "Имя", "Почта", "Модерация", "Расположение", "Флаг" }
+                ));
+            _queries.Add("7. И RW и RO", new PredefinedQuery(
+                filter: "(objectCategory=user)(!userAccountControl:1.2.840.113556.1.4.803:=2)",
+                properties: new[] { "displayName", "memberOf", "distinguishedName", "userAccountControl" },
+                displayNames: new[] { "Имя", "Группы", "Расположение", "Флаг" }
+                ));
+            _queries.Add("8. ПК в WDS_Drop", new PredefinedQuery(
+                filter: "(objectCategory=computer)",
+                properties: new[] { "displayName", "whenCreated", "distinguishedName" },
+                displayNames: new[] { "Имя ПК", "Когда создали", "Расположение" }
+                ));
+            _queries.Add("9. Вечные пароли", new PredefinedQuery(
+                filter: "(objectCategory=user)(userAccountControl:1.2.840.113556.1.4.803:=65536)(!userAccountControl:1.2.840.113556.1.4.803:=2)",
+                properties: new[] { "displayName", "sAMAccountName", "pwdLastSet", "distinguishedName", "userAccountControl" },
+                displayNames: new[] { "Имя", "Логин", "Последняя смена пароля", "Расположение", "Флаг" }
+                ));
+            _queries.Add("10. Свободный поиск", new PredefinedQuery(
+                filter: "(objectCategory=user)(objectClass=*)",
+                properties: freeProperties,
+                displayNames: freeDisplayNames
+                ));
+            _queries.Add("11. Юзеры группы", new PredefinedQuery(
+                filter: "(objectCategory=user)(!userAccountControl:1.2.840.113556.1.4.803:=2)",
+                properties: new[] { "displayName", "sAMAccountName", "memberOf", "distinguishedName" },
+                displayNames: new[] { "Имя", "Логин", "Группы", "Расположение" }
+                ));
+        }
+
+        // Заполнение выпадающего списка запросами
+        private void InitializeComboBox()
+        {
+            cmbQueries.BeginUpdate();
+            cmbQueries.Items.Clear();
+
+            foreach (var key in _queries.Keys)
+            {
+                cmbQueries.Items.Add(key);
+            }
+            cmbQueries.SelectedIndex = 0;
+
+            cmbFreeSearch.BeginUpdate();
+            cmbFreeSearch.Items.Clear();
+            cmbFreeSearch.Items.Add("user");
+            cmbFreeSearch.Items.Add("computer");
+            cmbFreeSearch.SelectedIndex = 0;
+        }
+
+        // Обработчик изменения выбранного запроса
+        private void cmbQueries_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            // Очищаем предыдущие результаты
+            dgvResults.Columns.Clear();
+            dgvResults.Rows.Clear();
+            lblStatus.Text = "Найдено: 0 записей";
+
+            string selectedKey = cmbQueries.SelectedItem.ToString();
+
+            _currentQuery = _queries[selectedKey];
+
+            // Показываем панель только для свободного поиска
+            pnlFreeSearch.Visible = (selectedKey == "10. Свободный поиск");
+            pnlOUSearch.Visible = (selectedKey == "10. Свободный поиск" || selectedKey == "9. Вечные пароли" ||
+                selectedKey == "1. Неактивные ПК" || selectedKey == "2. Устаревшие ОС" ||
+                selectedKey == "3. Неактивные УЗ" || selectedKey == "11. Юзеры группы");
+            pnlTimeSearch.Visible = (selectedKey == "1. Неактивные ПК" || selectedKey == "3. Неактивные УЗ");
+            pnlOSSearch.Visible = (selectedKey == "2. Устаревшие ОС" || selectedKey == "11. Юзеры группы");
+
+            if (pnlFreeSearch.Visible)
+            {
+                cmbFreeSearch.SelectedIndex = 0;
+            }
+            if (pnlOUSearch.Visible)
+            {
+                txt3.Text = "";
+            }
+            if (pnlTimeSearch.Visible)
+            {
+                dtpTimeSearcher.Value = DateTime.Now;
+            }
+            if (pnlOSSearch.Visible)
+            {
+                if (selectedKey == "2. Устаревшие ОС")
+                {
+                    label5.Text = "ОС";
+                    label6.Text = "перчислять через";
+                    label7.Text = "запятую";
+                }
+                if (selectedKey == "11. Юзеры группы")
+                {
+                    label5.Text = "Группа";
+                    label6.Text = " ";
+                    label7.Text = " ";
+                }
+                txt4.Text = "";
+            }
+        }
+
+        // Выполняет текущий запрос
+        private void ExecuteQuery()
+        {
+            var results = _adService.Search(_currentQuery.Filter, _currentQuery.Properties);
+            DisplayResults(results);
+        }
+
+        // Отображение результатов в DataGridView
+        private void DisplayResults(List<AdObject> results)
+        {
+            // Очищаем предыдущие результаты
+            dgvResults.Columns.Clear();
+            dgvResults.Rows.Clear();
+
+            // Создание столбцов
+            for (int i = 0; i < _currentQuery.DisplayNames.Length; i++)
+            {
+                dgvResults.Columns.Add(
+                    columnName: $"col_{i}",
+                    headerText: _currentQuery.DisplayNames[i]
+                );
+            }
+
+            // Постобработка запросов
+            // Запрс 1
+            if (cmbQueries.SelectedIndex == 0)
+            {
+                FilterOU(results, txt3.Text);
+            }
+
+            // Запрс 2
+            if (cmbQueries.SelectedIndex == 1)
+            {
+                FilterOU(results, txt3.Text);
+            }
+
+            // Запрс 3
+            if (cmbQueries.SelectedIndex == 2)
+            {
+                FilterOU(results, txt3.Text);
+            }
+
+            // Запрос 4
+            if (cmbQueries.SelectedIndex == 3)
+            {
+                FilterSoftwareGroups(results);
+            }
+
+            // Запрос 7
+            if (cmbQueries.SelectedIndex == 6)
+            {
+                FilterRWRO(results);// Подумать добавить столб конфилкт групп
+            }
+
+            // Запрос 8
+            if (cmbQueries.SelectedIndex == 7)
+            {
+                FilterOU(results);
+            }
+
+            // Запрс 9
+            //if (cmbQueries.SelectedIndex == 8)
+            //{
+            //    //FilterUsersWithMissingOu(results);
+            //    FilterOneMoreGroup(results);
+            //}
+
+            // Запрс 9
+            if (cmbQueries.SelectedIndex == 8)
+            {
+                FilterOU(results, txt3.Text);
+            }
+
+            // Запрс 10
+            if (cmbQueries.SelectedIndex == 9)
+            {
+                if (!string.IsNullOrWhiteSpace(txt3.Text))
+                    FilterOU(results, txt3.Text);
+            }
+
+            // Запрс 11
+            if (cmbQueries.SelectedIndex == 10)
+            {
+                if (!string.IsNullOrWhiteSpace(txt3.Text))
+                    FilterOU(results, txt3.Text);
+
+                if (!string.IsNullOrWhiteSpace(txt4.Text))
+                    FilterGroup(results, txt4.Text);
+            }
+
+            // Заполняем данными
+            foreach (var item in results)
+            {
+                int rowIndex = dgvResults.Rows.Add();
+                var row = dgvResults.Rows[rowIndex];
+
+                for (int i = 0; i < _currentQuery.Properties.Length; i++)
+                {
+                    row.Cells[i].Value = item.GetPropertyValue(_currentQuery.Properties[i]);
+                }
+            }
+
+            lblStatus.Text = $"Найдено: {results.Count} записей";
+        }
+
+        // Фильтрация комрьютеров по группам установки ОП
+        private void FilterSoftwareGroups(List<AdObject> computers)
+        {
+            var requiredFullGroups = new List<string>
+            {
+                "GPCP_Additional_software_Install",
+                "GPCP_Kaspersky_Endpoint_Security_Install",
+                //"GPCP_OCS_Agent_Install",
+                //"GPCP_3CX_Phone_Client_Install",
+                //""
+            };
+
+            // Создаем словарь для быстрого поиска
+            var requiredGroupsSet = new HashSet<string>(
+                requiredFullGroups,
+                StringComparer.OrdinalIgnoreCase);
+
+            // Удаляем компьютеры которые состоят во всех обязятельных группах
+            computers.RemoveAll(computer =>
+            {
+                // Получаем список групп компьютера
+                string groupsValue = computer.GetPropertyValue("memberOf")?.ToString() ?? "";
+                if (string.IsNullOrEmpty(groupsValue))
+                    return false;
+
+                // Проверяем наличие всех обязательных групп
+                foreach (var requiredGroup in requiredGroupsSet)
+                {
+                    // Ищем группу в списке групп компьютера
+                    bool found = false;
+                    foreach (var computerGroup in groupsValue.Split(';'))
+                    {
+                        if (computerGroup.Trim().Equals(requiredGroup, StringComparison.OrdinalIgnoreCase))
+                        {
+                            found = true;
+                            break;
+                        }
+                    }
+
+                    // Если не нашли хотябы одну группу оставляем пк в результатах
+                    if (!found) return false;
+                }
+
+                // Удаляем компьютер из результатов, тк все группы найдены
+                return true;
+            });
+        }
+
+        // Фильтрация компьютеров в _WDS Drop
+        private void FilterOU(List<AdObject> computers, string ou = "_WDS Drop")
+        {
+            computers.RemoveAll(computer =>
+            {
+                string dn = computer.GetPropertyValue("distinguishedName").ToString();
+                return !dn.Contains($"OU={ou}", StringComparison.OrdinalIgnoreCase);
+            });
+        }
+
+        // Фильтрация по наличию отдела
+        private void FilterGroup(List<AdObject> results, string group)
+        {
+            // Удаляем записи которые не имеют нужной группы
+            results.RemoveAll(res =>
+            {
+                // Получаем список групп
+                string groupsValue = res.GetPropertyValue("memberOf")?.ToString() ?? "";
+                if (string.IsNullOrEmpty(groupsValue))
+                    return true;
+
+                bool flag = false;
+
+                // Проверяем наличие группы
+                foreach (var Group in groupsValue.Split(';'))
+                {
+                    if (!string.IsNullOrEmpty(Group) && Group[0] == ' ')
+                    {
+                        if (Group.Substring(1).Equals(group, StringComparison.OrdinalIgnoreCase))
+                        {
+                            flag = true;
+                        }
+                    }
+                    else
+                    {
+                        if (Group.Equals(group, StringComparison.OrdinalIgnoreCase))
+                        {
+                            flag = true;
+                        }
+                    }
+
+                    // Если нашли группу оставляем результат
+                    if (flag) return false;
+                }
+
+                // Удаляем результат, тк не нашли группу
+                return true;
+            });
+        }
+
+        // Фильтрует пользователей, имеющих хотя бы одну пару групп RW/RO
+        private void FilterRWRO(List<AdObject> users)
+        {
+            //Удаляем пользователей без парных групп
+            users.RemoveAll(users =>
+            {
+                // Получаем список групп
+                string groupsValue = users.GetPropertyValue("memberOf").ToString() ?? "";
+                var userGroups = groupsValue.Split(";").Select(g => g.Trim()).ToList();
+
+                // Собираем базовые имена групп
+                var baseNames = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+
+                foreach (var userGroup in userGroups)
+                {
+                    // Проверяем суффиксы RW/ RO
+                    if (userGroup.EndsWith("_RW", StringComparison.OrdinalIgnoreCase) ||
+                    userGroup.EndsWith("_RO", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Извлекаем базовое имя группы
+                        string baseName = userGroup.Substring(0, userGroup.Length - 3);
+
+                        // Инициализируем коллекцию для базового имени
+                        if (!baseNames.ContainsKey(baseName))
+                            baseNames[baseName] = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                        // Добавляем суффикс (RW или RO)
+                        string suffix = userGroup.Substring(userGroup.Length - 2);
+                        baseNames[baseName].Add(suffix);
+                    }
+                }
+
+                // Проверяем наличие парных групп
+                foreach (var suffixes in baseNames.Values)
+                {
+                    // Если для базового имени есть оба суффикса
+                    if (suffixes.Contains("RW") && suffixes.Contains("RO"))
+                        return false; // Оставляем пользователя в результатах
+                }
+
+                // Нет парных групп - удаляем пользователя
+                return true;
+            });
+        }
+
+        // Фильтрует пользователейс группами GRUS_*, не имеющими соответствующего OU в DN
+        private void FilterUsersWithMissingOu(List<AdObject> users)
+        {
+            users.RemoveAll(user =>
+            {
+                // Преобразуем группы и путь в строки
+                string dn = user.GetPropertyValue("distinguishedName")?.ToString() ?? "";
+                string groupsValue = user.GetPropertyValue("memberOf")?.ToString() ?? "";
+
+                // Создаем список проблемных групп
+                var problemGroups = new List<string>();
+
+                // Сравниваем наличие названия группы в пути
+                foreach (var group in groupsValue.Split(';'))
+                {
+                    string trimmed = group.Trim();
+                    if (trimmed.StartsWith("GRUS_", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string groupName = trimmed.Substring(5);
+                        string ouPattern = $"OU={groupName},";
+
+                        if (dn.IndexOf(ouPattern, StringComparison.OrdinalIgnoreCase) < 0)
+                        {
+                            problemGroups.Add(trimmed);
+                        }
+                    }
+                }
+
+                // Если есть проблемные группы - сохраняем их и оставляем пользователя
+                if (problemGroups.Count > 0)
+                {
+                    user.SetProperty("ProblemGroups", string.Join("; ", problemGroups));
+                    return false;
+                }
+
+                return true;
+            });
+        }
+
+        // Смотрим на наличие более чем одной группы отдела
+        private void FilterOneMoreGroup(List<AdObject> users)
+        {
+            users.RemoveAll(user =>
+            {
+                // Получаем строку групп
+                string groupsValue = user.GetPropertyValue("memberOf")?.ToString() ?? "";
+
+                int count = 0;
+
+                foreach (var group in groupsValue.Split(';'))
+                {
+                    // Если группа начинется с GRUS_ увеличиваем счетчик
+                    string Tgroup = group.Trim();
+                    if (Tgroup.StartsWith("GRUS_", StringComparison.OrdinalIgnoreCase) && !Tgroup.EndsWith("_HEAD", StringComparison.OrdinalIgnoreCase))
+                    {
+                        count++;
+                    }
+                }
+
+                // Если пользователь только в одной группе отдела, удаляем его
+                if (count <= 1)
+                {
+                    return true;
+                }
+
+                // Если более чем в одной или не в одной оставляем
+                return false;
+            });
+        }
+
+        // Обработчик кнопки выполнения свободного поиска
+        private void btnFreeSearch_Click(object sender, EventArgs e)
+        {
+            if (pnlFreeSearch.Visible || pnlTimeSearch.Visible || (pnlOSSearch.Visible && label5.Text == "ОС"))
+            {
+                // Построение фильтра на основе введенных данных
+                _currentQuery.Filter = BuildFreeSearchFilter();
+            }
+
+            // Выполнение запроса
+            ExecuteQuery();
+        }
+
+        // Строит фильтр для свободного поиска
+        private string BuildFreeSearchFilter()
+        {
+            if (pnlFreeSearch.Visible)
+            {
+                var filters = new List<string>();
+
+                // Фильтр по логину
+                if (!string.IsNullOrWhiteSpace(txt1.Text))
+                    filters.Add($"({freeProperties[0]}=*{txt1.Text}*)");
+
+                // Фильтр по имени
+                if (!string.IsNullOrWhiteSpace(txt2.Text))
+                    filters.Add($"({freeProperties[1]}=*{txt2.Text}*)");
+
+                // Базовый фильтр для пользователей
+                /* const */
+                string baseFilter = $"(objectCategory={cmbFreeSearch.SelectedItem.ToString()})";
+
+                // Комбинирование условий
+                if (filters.Count == 0)
+                    return $"{baseFilter}(objectClass=*)";
+
+                return $"(&{baseFilter}{string.Join("", filters)})";
+            }
+
+            if (pnlTimeSearch.Visible)
+            {
+                string filter = "";
+                string selectedKey = cmbQueries.SelectedItem.ToString();
+                long fileTime = dtpTimeSearcher.Value.ToFileTime();
+
+                if (selectedKey == "1. Неактивные ПК")
+                {
+                    filter = $"(objectCategory=computer)(lastLogon<={fileTime})";
+                }
+                if (selectedKey == "3. Неактивные УЗ")
+                {
+                    filter = $"(objectCategory=user)(lastLogon<={fileTime})(!userAccountControl:1.2.840.113556.1.4.803:=2)";
+                }
+
+                return filter;
+            }
+
+            if (pnlOSSearch.Visible)
+            {
+                var filters = new List<string>();
+
+                foreach (var os in txt4.Text.Split(','))
+                {
+                    if (!string.IsNullOrEmpty(os) && os[0] == ' ')
+                    {
+                        filters.Add($"(operatingSystem=*{os.Substring(1)}*)");
+                    }
+                    else
+                    {
+                        filters.Add($"(operatingSystem=*{os}*)");
+                    }
+                }
+
+                return $"(objectCategory=computer)(|{string.Join("", filters)})";
+            }
+
+            return "";
+        }
+
+        // Обработчик изменения выбранного свободного запроса
+        private void cmbFreeSearch_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            bool selectedKey = cmbQueries.SelectedIndex == 9;
+            string selectedCategory = cmbFreeSearch.SelectedItem.ToString();
+
+            txt1.Text = "";
+            txt2.Text = "";
+            txt3.Text = "";
+
+            if (selectedCategory == "user" && selectedKey)
+            {
+                label1.Text = "Логин";
+                label2.Text = "ФИО";
+                freeProperties = new[] { "displayName", "sAMAccountName", "pwdLastSet", "distinguishedName" };
+                freeDisplayNames = new[] { "Имя", "Логин", "Последняя смена пароля", "Расположение" };
+                _currentQuery.Properties = freeProperties;
+                _currentQuery.DisplayNames = freeDisplayNames;
+            }
+            if (selectedCategory == "computer" && selectedKey)
+            {
+                label2.Text = "Название ПК";
+                label1.Text = "ОС";
+                freeProperties = new[] { "displayName", "operatingSystem", "distinguishedName" };
+                freeDisplayNames = new[] { "Имя ПК", "ОС", "Расположение" };
+                _currentQuery.Properties = freeProperties;
+                _currentQuery.DisplayNames = freeDisplayNames;
+            }
+
+        }
+
+        // Обработчик двойного нажатия в таблице
+        private void dgvResults_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
+
+            var cell = dgvResults.Rows[e.RowIndex].Cells[e.ColumnIndex];
+            string fullText = cell.Value?.ToString() ?? "";
+
+            // Создаем форму для отображения
+            using (Form textViewer = new Form())
+            {
+                textViewer.Text = "Full text";
+                textViewer.Size = new Size(500, 300);
+
+                System.Windows.Forms.TextBox tb = new System.Windows.Forms.TextBox
+                {
+                    Multiline = true,
+                    Dock = DockStyle.Fill,
+                    ScrollBars = System.Windows.Forms.ScrollBars.Both,
+                    Text = fullText,
+                    ReadOnly = true,
+                    Font = new System.Drawing.Font("Consolas", 10)
+                };
+
+                textViewer.Controls.Add(tb);
+                textViewer.ShowDialog();
+            }
+        }
+
+        // Обработчик кнопки экспорта
+        private void btnExport_Click(object sender, EventArgs e)
+        {
+            using (var dialog = new SaveFileDialog())
+            {
+                dialog.Filter = "Excel Files|*.xlsx";
+                dialog.FileName = $"AD_Request_{cmbQueries.SelectedIndex + 1}_{DateTime.Now:dd.MM.yyyy}.xlsx";
+
+                if (dialog.ShowDialog() == DialogResult.OK)
+                {
+                    ExportToExcel(dialog.FileName);
+                }
+            }
+        }
+
+        // Экспорт данных в Excel
+        private void ExportToExcel(string filename)
+        {
+            Microsoft.Office.Interop.Excel.Application excelApp = null;
+            Workbook workbook = null;
+            Worksheet worksheet = null;
+            ProgressForm progressForm = null;
+
+            try
+            {
+                // Инициализация формы прогресса
+                progressForm = new ProgressForm("Экспорт в Excel", "Подготовка данных...");
+                progressForm.Show();
+                System.Windows.Forms.Application.DoEvents();
+
+                // Создаем экземпляр Excel
+                excelApp = new Microsoft.Office.Interop.Excel.Application();
+                excelApp.DisplayAlerts = false;
+                excelApp.Visible = false;
+                excelApp.ScreenUpdating = false;
+
+                // Создаем новую книгу
+                progressForm.UpdateMessage("Создание документа Excel...");
+                workbook = excelApp.Workbooks.Add(Type.Missing);
+
+                // Получаем первый лист
+                worksheet = (Worksheet)workbook.Sheets[1];
+
+                // Устанавливаем имя листа
+                string sheetName = cmbQueries.SelectedItem?.ToString() ?? "AD_Data";
+                if (sheetName.Length > 31) sheetName = sheetName.Substring(0, 31);
+                worksheet.Name = sheetName;
+
+                // Добавляем заголовки
+                for (int col = 0; col < dgvResults.Columns.Count; col++)
+                {
+                    if (progressForm.Cancelled) break;
+
+                    worksheet.Cells[1, col + 1] = dgvResults.Columns[col].HeaderText;
+
+                    // Форматируем заголовки
+                    Microsoft.Office.Interop.Excel.Range headerCell = (Microsoft.Office.Interop.Excel.Range)worksheet.Cells[1, col + 1];
+                    headerCell.Font.Bold = true;
+                    headerCell.Borders.Weight = XlBorderWeight.xlThick;
+                }
+
+                // Добавляем данные
+                int totalRows = dgvResults.Rows.Count;
+                int currentRow = 0;
+                int rowIndex = 2;
+                progressForm.UpdateMessage("Экспорт данных...");
+                foreach (DataGridViewRow dgvRow in dgvResults.Rows)
+                {
+                    if (progressForm.Cancelled) break;
+                    if (dgvRow.IsNewRow) continue;
+
+                    currentRow++;
+
+                    // Обновляем прогресс каждые 10 строк или для каждой строки если строк меньше 50 или если осталось меньше 10 строк
+                    if (currentRow % 10 == 0 || totalRows < 50 || (totalRows - currentRow) <= 10)
+                    {
+                        progressForm.UpdateProgress(currentRow, totalRows);
+                    }
+
+                    for (int col = 0; col < dgvResults.Columns.Count; col++)
+                    {
+                        // Получаем значение ячейки
+                        object value = dgvRow.Cells[col].Value;
+
+                        // Проверяем тип данных для правильного форматирования
+                        if (value is DateTime dateValue)
+                        {
+                            worksheet.Cells[rowIndex, col + 1] = dateValue;
+                            Microsoft.Office.Interop.Excel.Range dateCell = (Microsoft.Office.Interop.Excel.Range)worksheet.Cells[rowIndex, col + 1];
+                            dateCell.NumberFormat = "dd.mm.yyyy hh:mm";
+                        }
+                        else
+                        {
+                            worksheet.Cells[rowIndex, col + 1] = value?.ToString();
+                        }
+                    }
+                    rowIndex++;
+                }
+
+                if (progressForm.Cancelled)
+                {
+                    progressForm.UpdateMessage("Отмена операции...");
+                    return;
+                }
+
+                // Авто настройка ширины столбцов
+                progressForm.UpdateMessage("Оптимизация столбцов...");
+                worksheet.Columns.AutoFit();
+
+                // Добавляем фильты
+                progressForm.UpdateMessage("Добавление фильтров...");
+                Microsoft.Office.Interop.Excel.Range usedRange = worksheet.UsedRange;
+                usedRange.AutoFilter(1, Type.Missing, XlAutoFilterOperator.xlAnd, Type.Missing, true);
+
+                // Сохраняем файл
+                progressForm.UpdateMessage("Сохранение файла...");
+                workbook.SaveAs(filename, XlFileFormat.xlOpenXMLWorkbook);
+
+                progressForm.UpdateMessage("Экспорт завершен!");
+                progressForm.UpdateProgress(currentRow, totalRows);
+
+                MessageBox.Show($"Данные успешно экспортированы в:\n{filename}",
+                    "Экспорт завершен",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при экспорте в Excel:\n{ex.Message}",
+                    "Ошибка",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            finally
+            {
+                // Очистка ресурсов
+                if (workbook != null && !progressForm.Cancelled)
+                {
+                    workbook.Close(false);
+                    Marshal.ReleaseComObject(workbook);
+                }
+
+                if (excelApp != null)
+                {
+                    excelApp.ScreenUpdating = true;
+                    excelApp.Quit();
+                    Marshal.ReleaseComObject(excelApp);
+                }
+
+                // Освобождаем COM объекты
+                if (worksheet != null) Marshal.ReleaseComObject(worksheet);
+
+                // Закрываем форму прогресса
+                if (progressForm != null)
+                {
+                    if (!progressForm.IsDisposed)
+                    {
+                        progressForm.Close();
+                        progressForm.Dispose();
+                    }
+                }
+
+                // Принудительная сборка мусора для COM объектов
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+            }
+        }
+    }
+
+    internal class PredefinedQuery
+    {
+        public string Filter { get; set; }
+        public string[] Properties { get; set; }
+        public string[] DisplayNames { get; set; }
+
+        public PredefinedQuery(string filter, string[] properties, string[] displayNames)
+        {
+            Filter = filter;
+            Properties = properties;
+            DisplayNames = displayNames;
+        }
+    }
+}
