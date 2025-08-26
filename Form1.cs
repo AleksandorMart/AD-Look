@@ -398,64 +398,64 @@ namespace ADlook
             });
         }
 
-        // Ôèëüòðóåò ïîëüçîâàòåëåé, èìåþùèõ õîòÿ áû îäíó ïàðó ãðóïï RW/RO
+        // Фильтрует пользователей, имеющих хотя бы одну пару групп RW/RO
         private void FilterRWRO(List<AdObject> users)
         {
-            //Óäàëÿåì ïîëüçîâàòåëåé áåç ïàðíûõ ãðóïï
+            // Удаляем пользователей без парных групп
             users.RemoveAll(users =>
             {
-                // Ïîëó÷àåì ñïèñîê ãðóïï
+                // Получаем список групп
                 string groupsValue = users.GetPropertyValue("memberOf").ToString() ?? "";
                 var userGroups = groupsValue.Split(";").Select(g => g.Trim()).ToList();
 
-                // Ñîáèðàåì áàçîâûå èìåíà ãðóïï
+                // Собираем базовые имена групп
                 var baseNames = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
 
                 foreach (var userGroup in userGroups)
                 {
-                    // Ïðîâåðÿåì ñóôôèêñû RW/ RO
+                    // Проверяем суффиксы RW/ RO
                     if (userGroup.EndsWith("_RW", StringComparison.OrdinalIgnoreCase) ||
                     userGroup.EndsWith("_RO", StringComparison.OrdinalIgnoreCase))
                     {
-                        // Èçâëåêàåì áàçîâîå èìÿ ãðóïïû
+                        // Извлекаем базовое имя группы
                         string baseName = userGroup.Substring(0, userGroup.Length - 3);
 
-                        // Èíèöèàëèçèðóåì êîëëåêöèþ äëÿ áàçîâîãî èìåíè
+                        // Инициализируем коллекцию для базового имени
                         if (!baseNames.ContainsKey(baseName))
                             baseNames[baseName] = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-                        // Äîáàâëÿåì ñóôôèêñ (RW èëè RO)
+                        // Добавляем суффикс (RW или RO)
                         string suffix = userGroup.Substring(userGroup.Length - 2);
                         baseNames[baseName].Add(suffix);
                     }
                 }
 
-                // Ïðîâåðÿåì íàëè÷èå ïàðíûõ ãðóïï
+                // Проверяем наличие парных групп
                 foreach (var suffixes in baseNames.Values)
                 {
-                    // Åñëè äëÿ áàçîâîãî èìåíè åñòü îáà ñóôôèêñà
+                    // Если для базового имени есть оба суффикса
                     if (suffixes.Contains("RW") && suffixes.Contains("RO"))
-                        return false; // Îñòàâëÿåì ïîëüçîâàòåëÿ â ðåçóëüòàòàõ
+                        return false; // Оставляем пользователя в результатах
                 }
 
-                // Íåò ïàðíûõ ãðóïï - óäàëÿåì ïîëüçîâàòåëÿ
+                // Нет парных групп - удаляем пользователя
                 return true;
             });
         }
 
-        // Ôèëüòðóåò ïîëüçîâàòåëåéñ ãðóïïàìè GRUS_*, íå èìåþùèìè ñîîòâåòñòâóþùåãî OU â DN
+        // Фильтрует пользователей с группами GRUS_*, не имеющими соответствующего OU в DN
         private void FilterUsersWithMissingOu(List<AdObject> users)
         {
             users.RemoveAll(user =>
             {
-                // Ïðåîáðàçóåì ãðóïïû è ïóòü â ñòðîêè
+                // Преобразуем группы и путь в строки
                 string dn = user.GetPropertyValue("distinguishedName")?.ToString() ?? "";
                 string groupsValue = user.GetPropertyValue("memberOf")?.ToString() ?? "";
 
-                // Ñîçäàåì ñïèñîê ïðîáëåìíûõ ãðóïï
+                // Создаем список проблемных групп
                 var problemGroups = new List<string>();
 
-                // Ñðàâíèâàåì íàëè÷èå íàçâàíèÿ ãðóïïû â ïóòè
+                // Сравниваем наличие названия группы в пути
                 foreach (var group in groupsValue.Split(';'))
                 {
                     string trimmed = group.Trim();
@@ -471,7 +471,7 @@ namespace ADlook
                     }
                 }
 
-                // Åñëè åñòü ïðîáëåìíûå ãðóïïû - ñîõðàíÿåì èõ è îñòàâëÿåì ïîëüçîâàòåëÿ
+                // Если есть проблемные группы - сохраняем их и оставляем пользователя
                 if (problemGroups.Count > 0)
                 {
                     user.SetProperty("ProblemGroups", string.Join("; ", problemGroups));
@@ -482,19 +482,19 @@ namespace ADlook
             });
         }
 
-        // Ñìîòðèì íà íàëè÷èå áîëåå ÷åì îäíîé ãðóïïû îòäåëà
+        // Смотрим на наличие более чем одной группы отдела
         private void FilterOneMoreGroup(List<AdObject> users)
         {
             users.RemoveAll(user =>
             {
-                // Ïîëó÷àåì ñòðîêó ãðóïï
+                // Получаем строку групп
                 string groupsValue = user.GetPropertyValue("memberOf")?.ToString() ?? "";
 
                 int count = 0;
 
                 foreach (var group in groupsValue.Split(';'))
                 {
-                    // Åñëè ãðóïïà íà÷èíåòñÿ ñ GRUS_ óâåëè÷èâàåì ñ÷åò÷èê
+                    // Если группа начинается с GRUS_ увеличиваем счетчик
                     string Tgroup = group.Trim();
                     if (Tgroup.StartsWith("GRUS_", StringComparison.OrdinalIgnoreCase) && !Tgroup.EndsWith("_HEAD", StringComparison.OrdinalIgnoreCase))
                     {
@@ -502,50 +502,50 @@ namespace ADlook
                     }
                 }
 
-                // Åñëè ïîëüçîâàòåëü òîëüêî â îäíîé ãðóïïå îòäåëà, óäàëÿåì åãî
+                // Если пользователь только в одной группе отдела, удаляем его
                 if (count <= 1)
                 {
                     return true;
                 }
 
-                // Åñëè áîëåå ÷åì â îäíîé èëè íå â îäíîé îñòàâëÿåì
+                // Если более чем в одной или не в одной оставляем
                 return false;
             });
         }
 
-        // Îáðàáîò÷èê êíîïêè âûïîëíåíèÿ ñâîáîäíîãî ïîèñêà
+        // Обработчик кнопки выполнения свободного поиска
         private void btnFreeSearch_Click(object sender, EventArgs e)
         {
             if (pnlFreeSearch.Visible || pnlTimeSearch.Visible || (pnlOSSearch.Visible && label5.Text == "ÎÑ"))
             {
-                // Ïîñòðîåíèå ôèëüòðà íà îñíîâå ââåäåííûõ äàííûõ
+                // Построение фильтра на основе введенных данных
                 _currentQuery.Filter = BuildFreeSearchFilter();
             }
 
-            // Âûïîëíåíèå çàïðîñà
+            // Выполнение запроса
             ExecuteQuery();
         }
 
-        // Ñòðîèò ôèëüòð äëÿ ñâîáîäíîãî ïîèñêà
+        // Строит фильтр для свободного поиска
         private string BuildFreeSearchFilter()
         {
             if (pnlFreeSearch.Visible)
             {
                 var filters = new List<string>();
 
-                // Ôèëüòð ïî ëîãèíó
+                // Фильтр по логину
                 if (!string.IsNullOrWhiteSpace(txt1.Text))
                     filters.Add($"({freeProperties[0]}=*{txt1.Text}*)");
 
-                // Ôèëüòð ïî èìåíè
+                // Фильтр по имени
                 if (!string.IsNullOrWhiteSpace(txt2.Text))
                     filters.Add($"({freeProperties[1]}=*{txt2.Text}*)");
 
-                // Áàçîâûé ôèëüòð äëÿ ïîëüçîâàòåëåé
+                // Базовый фильтр для пользователей
                 /* const */
                 string baseFilter = $"(objectCategory={cmbFreeSearch.SelectedItem.ToString()})";
 
-                // Êîìáèíèðîâàíèå óñëîâèé
+                // Комбинирование условий
                 if (filters.Count == 0)
                     return $"{baseFilter}(objectClass=*)";
 
@@ -558,11 +558,11 @@ namespace ADlook
                 string selectedKey = cmbQueries.SelectedItem.ToString();
                 long fileTime = dtpTimeSearcher.Value.ToFileTime();
 
-                if (selectedKey == "1. Íåàêòèâíûå ÏÊ")
+                if (selectedKey == "1. Неактивные ПК")
                 {
                     filter = $"(objectCategory=computer)(lastLogon<={fileTime})";
                 }
-                if (selectedKey == "3. Íåàêòèâíûå ÓÇ")
+                if (selectedKey == "3. Неактивные УЗ")
                 {
                     filter = $"(objectCategory=user)(lastLogon<={fileTime})(!userAccountControl:1.2.840.113556.1.4.803:=2)";
                 }
@@ -592,7 +592,7 @@ namespace ADlook
             return "";
         }
 
-        // Îáðàáîò÷èê èçìåíåíèÿ âûáðàííîãî ñâîáîäíîãî çàïðîñà
+        // Обработчик изменения выбранного свободного запроса
         private void cmbFreeSearch_SelectedIndexChanged(object sender, EventArgs e)
         {
             bool selectedKey = cmbQueries.SelectedIndex == 9;
@@ -604,26 +604,26 @@ namespace ADlook
 
             if (selectedCategory == "user" && selectedKey)
             {
-                label1.Text = "Ëîãèí";
-                label2.Text = "ÔÈÎ";
+                label1.Text = "Логин";
+                label2.Text = "ФИО";
                 freeProperties = new[] { "displayName", "sAMAccountName", "pwdLastSet", "distinguishedName" };
-                freeDisplayNames = new[] { "Èìÿ", "Ëîãèí", "Ïîñëåäíÿÿ ñìåíà ïàðîëÿ", "Ðàñïîëîæåíèå" };
+                freeDisplayNames = new[] { "Имя", "Логин", "Последняя смена пароля", "Расположение" };
                 _currentQuery.Properties = freeProperties;
                 _currentQuery.DisplayNames = freeDisplayNames;
             }
             if (selectedCategory == "computer" && selectedKey)
             {
-                label2.Text = "Íàçâàíèå ÏÊ";
-                label1.Text = "ÎÑ";
+                label2.Text = "Название ПК";
+                label1.Text = "ОС";
                 freeProperties = new[] { "displayName", "operatingSystem", "distinguishedName" };
-                freeDisplayNames = new[] { "Èìÿ ÏÊ", "ÎÑ", "Ðàñïîëîæåíèå" };
+                freeDisplayNames = new[] { "Имя ПК", "ОС", "Расположение" };
                 _currentQuery.Properties = freeProperties;
                 _currentQuery.DisplayNames = freeDisplayNames;
             }
 
         }
 
-        // Îáðàáîò÷èê äâîéíîãî íàæàòèÿ â òàáëèöå
+        // Обработчик двойного нажатия в таблице
         private void dgvResults_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
@@ -631,7 +631,7 @@ namespace ADlook
             var cell = dgvResults.Rows[e.RowIndex].Cells[e.ColumnIndex];
             string fullText = cell.Value?.ToString() ?? "";
 
-            // Ñîçäàåì ôîðìó äëÿ îòîáðàæåíèÿ
+            // Создаем форму для отображения
             using (Form textViewer = new Form())
             {
                 textViewer.Text = "Full text";
@@ -652,7 +652,7 @@ namespace ADlook
             }
         }
 
-        // Îáðàáîò÷èê êíîïêè ýêñïîðòà
+        // Обработчик кнопки экспорта
         private void btnExport_Click(object sender, EventArgs e)
         {
             using (var dialog = new SaveFileDialog())
@@ -667,7 +667,7 @@ namespace ADlook
             }
         }
 
-        // Ýêñïîðò äàííûõ â Excel
+        // Экспорт данных в Excel
         private void ExportToExcel(string filename)
         {
             Microsoft.Office.Interop.Excel.Application excelApp = null;
@@ -677,47 +677,47 @@ namespace ADlook
 
             try
             {
-                // Èíèöèàëèçàöèÿ ôîðìû ïðîãðåññà
-                progressForm = new ProgressForm("Ýêñïîðò â Excel", "Ïîäãîòîâêà äàííûõ...");
+                // Инициализация формы прогресса
+                progressForm = new ProgressForm("Экспорт в Excel", "Подготовка данных...");
                 progressForm.Show();
                 System.Windows.Forms.Application.DoEvents();
 
-                // Ñîçäàåì ýêçåìïëÿð Excel
+                // Создаем экземпляр Excel
                 excelApp = new Microsoft.Office.Interop.Excel.Application();
                 excelApp.DisplayAlerts = false;
                 excelApp.Visible = false;
                 excelApp.ScreenUpdating = false;
 
-                // Ñîçäàåì íîâóþ êíèãó
-                progressForm.UpdateMessage("Ñîçäàíèå äîêóìåíòà Excel...");
+                // Создаем новую книгу
+                progressForm.UpdateMessage("Создание документа Excel...");
                 workbook = excelApp.Workbooks.Add(Type.Missing);
 
-                // Ïîëó÷àåì ïåðâûé ëèñò
+                // Получаем первый лист
                 worksheet = (Worksheet)workbook.Sheets[1];
 
-                // Óñòàíàâëèâàåì èìÿ ëèñòà
+                // Устанавливаем имя листа
                 string sheetName = cmbQueries.SelectedItem?.ToString() ?? "AD_Data";
                 if (sheetName.Length > 31) sheetName = sheetName.Substring(0, 31);
                 worksheet.Name = sheetName;
 
-                // Äîáàâëÿåì çàãîëîâêè
+                // Добавляем заголовки
                 for (int col = 0; col < dgvResults.Columns.Count; col++)
                 {
                     if (progressForm.Cancelled) break;
 
                     worksheet.Cells[1, col + 1] = dgvResults.Columns[col].HeaderText;
 
-                    // Ôîðìàòèðóåì çàãîëîâêè
+                    // Форматируем заголовки
                     Microsoft.Office.Interop.Excel.Range headerCell = (Microsoft.Office.Interop.Excel.Range)worksheet.Cells[1, col + 1];
                     headerCell.Font.Bold = true;
                     headerCell.Borders.Weight = XlBorderWeight.xlThick;
                 }
 
-                // Äîáàâëÿåì äàííûå
+                // Добавляем данные
                 int totalRows = dgvResults.Rows.Count;
                 int currentRow = 0;
                 int rowIndex = 2;
-                progressForm.UpdateMessage("Ýêñïîðò äàííûõ...");
+                progressForm.UpdateMessage("Экспорт данных...");
                 foreach (DataGridViewRow dgvRow in dgvResults.Rows)
                 {
                     if (progressForm.Cancelled) break;
@@ -725,7 +725,7 @@ namespace ADlook
 
                     currentRow++;
 
-                    // Îáíîâëÿåì ïðîãðåññ êàæäûå 10 ñòðîê èëè äëÿ êàæäîé ñòðîêè åñëè ñòðîê ìåíüøå 50 èëè åñëè îñòàëîñü ìåíüøå 10 ñòðîê
+                    // Обновляем прогресс каждые 10 строк или для каждой строки если строк меньше 50 или если осталось меньше 10 строк
                     if (currentRow % 10 == 0 || totalRows < 50 || (totalRows - currentRow) <= 10)
                     {
                         progressForm.UpdateProgress(currentRow, totalRows);
@@ -733,10 +733,10 @@ namespace ADlook
 
                     for (int col = 0; col < dgvResults.Columns.Count; col++)
                     {
-                        // Ïîëó÷àåì çíà÷åíèå ÿ÷åéêè
+                        // Получаем значение ячейки
                         object value = dgvRow.Cells[col].Value;
 
-                        // Ïðîâåðÿåì òèï äàííûõ äëÿ ïðàâèëüíîãî ôîðìàòèðîâàíèÿ
+                        // Проверяем тип данных для правильного форматирования
                         if (value is DateTime dateValue)
                         {
                             worksheet.Cells[rowIndex, col + 1] = dateValue;
@@ -753,39 +753,39 @@ namespace ADlook
 
                 if (progressForm.Cancelled)
                 {
-                    progressForm.UpdateMessage("Îòìåíà îïåðàöèè...");
+                    progressForm.UpdateMessage("Отмена операции...");
                     return;
                 }
 
-                // Àâòî íàñòðîéêà øèðèíû ñòîëáöîâ
-                progressForm.UpdateMessage("Îïòèìèçàöèÿ ñòîëáöîâ...");
+                // Автонастройка ширины столбцов
+                progressForm.UpdateMessage("Оптимизация столбцов    ...");
                 worksheet.Columns.AutoFit();
 
-                // Äîáàâëÿåì ôèëüòû
-                progressForm.UpdateMessage("Äîáàâëåíèå ôèëüòðîâ...");
+                // Добавляем фильтры
+                progressForm.UpdateMessage("Добавление фильтров...");
                 Microsoft.Office.Interop.Excel.Range usedRange = worksheet.UsedRange;
                 usedRange.AutoFilter(1, Type.Missing, XlAutoFilterOperator.xlAnd, Type.Missing, true);
 
-                // Ñîõðàíÿåì ôàéë
-                progressForm.UpdateMessage("Ñîõðàíåíèå ôàéëà...");
+                // Сохраняем файл
+                progressForm.UpdateMessage("Сохранение файла...");
                 workbook.SaveAs(filename, XlFileFormat.xlOpenXMLWorkbook);
 
-                progressForm.UpdateMessage("Ýêñïîðò çàâåðøåí!");
+                progressForm.UpdateMessage("Экспорт завершен!");
                 progressForm.UpdateProgress(currentRow, totalRows);
 
-                MessageBox.Show($"Äàííûå óñïåøíî ýêñïîðòèðîâàíû â:\n{filename}",
-                    "Ýêñïîðò çàâåðøåí",
+                MessageBox.Show($"Данные успешно экспортированы в:\n{filename}",
+                    "Экспорт завершен",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Îøèáêà ïðè ýêñïîðòå â Excel:\n{ex.Message}",
-                    "Îøèáêà",
+                MessageBox.Show($"Ошибка при экспорте в Excel:\n{ex.Message}",
+                    "Ошибка",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             finally
             {
-                // Î÷èñòêà ðåñóðñîâ
+                // Очистка ресурсов
                 if (workbook != null && !progressForm.Cancelled)
                 {
                     workbook.Close(false);
@@ -799,10 +799,10 @@ namespace ADlook
                     Marshal.ReleaseComObject(excelApp);
                 }
 
-                // Îñâîáîæäàåì COM îáúåêòû
+                // Освобождаем COM объекты
                 if (worksheet != null) Marshal.ReleaseComObject(worksheet);
 
-                // Çàêðûâàåì ôîðìó ïðîãðåññà
+                // Закрываем форму прогресса
                 if (progressForm != null)
                 {
                     if (!progressForm.IsDisposed)
@@ -812,7 +812,7 @@ namespace ADlook
                     }
                 }
 
-                // Ïðèíóäèòåëüíàÿ ñáîðêà ìóñîðà äëÿ COM îáúåêòîâ
+                // Принудительная сборка мусора для COM объектов
                 GC.Collect();
                 GC.WaitForPendingFinalizers();
             }
@@ -834,3 +834,4 @@ namespace ADlook
     }
 
 }
+
