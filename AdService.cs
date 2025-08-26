@@ -16,7 +16,7 @@ namespace ADlook
     internal class AdService
     {
         // Домен Active Directory (настраивается в конфигурации)
-        private readonly string _domain = "LDAP://nniirt.local";  //, "martynov_as", "ADpract25AS";
+        private readonly string _domain = "LDAP://your.domain";
 
         // Выполняет поиск в Active Directory по указанному фильтру
         public List<AdObject> Search(string filter, string[] propertiesToLoad)
@@ -148,3 +148,4 @@ namespace ADlook
         }
     }
 }
+
